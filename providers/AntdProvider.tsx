@@ -5,16 +5,21 @@ import { ConfigProvider, theme } from 'antd'
 export const AntdProvider = ({ children }: { children: React.ReactNode }) => (
 	<ConfigProvider
 		theme={{
-			algorithm: theme.darkAlgorithm, // По умолчанию темная для "вау" эффекта
+			algorithm: theme.darkAlgorithm, // По умолчанию темная тема
 			token: {
-				colorPrimary: '#1890ff',
-				colorSuccess: '#52c41a',
-				colorError: '#ff4d4f',
-				borderRadius: 8,
+				colorPrimary: '#722ed1', // Сочный фиолетовый
+				colorInfo: '#13c2c2',
+				borderRadius: 12, // Более скругленные углы
+				colorBgLayout: '#001529', // Глубокий темно-синий для фона
+				colorBgContainer: '#141414', // Черный для карточек
 			},
 			components: {
 				Table: {
-					headerBg: 'transparent',
+					headerColor: '#8c8c8c',
+					cellPaddingBlock: 12,
+				},
+				Card: {
+					boxShadowTertiary: '0 4px 12px rgba(0,0,0,0.15)',
 				},
 			},
 		}}

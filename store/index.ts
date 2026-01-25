@@ -1,38 +1,15 @@
-import { combineReducers, configureStore } from '@reduxjs/toolkit'
-import {
-	FLUSH,
-	PAUSE,
-	PERSIST,
-	persistReducer,
-	persistStore,
-	PURGE,
-	REGISTER,
-	REHYDRATE,
-} from 'redux-persist'
-import storage from 'redux-persist/lib/storage'
-import attendanceReducer from './slices/attendanceSlice'
-
-const rootReducer = combineReducers({
-	attendance: attendanceReducer,
-})
-
-const persistConfig = {
-	key: 'root',
-	storage,
-}
-
-const persistedReducer = persistReducer(persistConfig, rootReducer)
+import { attendanceApi } from '@/services/api'
+import { configureStore } from '@reduxjs/toolkit'
 
 export const store = configureStore({
-	reducer: persistedReducer,
+	reducer: {
+		// Добавляем редьюсер API
+		[attendanceApi.reducerPath]: attendanceApi.reducer,
+	},
+	// Middleware нужен для кэширования, инвалидации и других фишек RTK Query
 	middleware: getDefaultMiddleware =>
-		getDefaultMiddleware({
-			serializableCheck: {
-				ignoredActions: [FLUSH, REHYDRATE, PAUSE, PERSIST, PURGE, REGISTER],
-			},
-		}),
+		getDefaultMiddleware().concat(attendanceApi.middleware),
 })
 
-export const persistor = persistStore(store)
 export type RootState = ReturnType<typeof store.getState>
 export type AppDispatch = typeof store.dispatch

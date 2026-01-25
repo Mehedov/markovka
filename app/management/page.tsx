@@ -1,8 +1,10 @@
 'use client'
 
-import { RootState } from '@/store'
-import { addGroup, addStudent } from '@/store/slices/attendanceSlice'
-import { TeamOutlined, UserAddOutlined } from '@ant-design/icons'
+import {
+	DeleteOutlined,
+	TeamOutlined,
+	UserAddOutlined,
+} from '@ant-design/icons'
 import {
 	Button,
 	Card,
@@ -17,37 +19,49 @@ import {
 	Table,
 	Typography,
 } from 'antd'
-import { useDispatch, useSelector } from 'react-redux'
-import { v4 as uuidv4 } from 'uuid' // Можно использовать crypto.randomUUID()
+// Импортируем хуки API
+import {
+	useAddGroupMutation,
+	useAddStudentMutation,
+	useDeleteStudentMutation,
+	useGetGroupsQuery,
+	useGetStudentsQuery,
+} from '@/services/api'
 
 const { Title } = Typography
 
 export default function ManagementPage() {
-	const dispatch = useDispatch()
 	const [groupForm] = Form.useForm()
 	const [studentForm] = Form.useForm()
+	const [deleteStudent] = useDeleteStudentMutation()
 
-	const groups = useSelector((state: RootState) => state.attendance.groups)
-	const students = useSelector((state: RootState) => state.attendance.students)
+	// Получаем данные и функции мутации
+	const { data: groups = [] } = useGetGroupsQuery()
+	const { data: students = [] } = useGetStudentsQuery()
+	const [addGroup] = useAddGroupMutation()
+	const [addStudent] = useAddStudentMutation()
 
-	// Добавление группы
-	const onGroupFinish = (values: { name: string }) => {
-		const newGroup = { id: uuidv4(), name: values.name }
-		dispatch(addGroup(newGroup))
-		groupForm.resetFields()
-		message.success(`Группа "${values.name}" создана`)
+	const onGroupFinish = async (values: { name: string }) => {
+		try {
+			await addGroup(values).unwrap()
+			groupForm.resetFields()
+			message.success(`Группа создана`)
+		} catch {
+			message.error('Ошибка при создании группы')
+		}
 	}
 
-	// Добавление студента
-	const onStudentFinish = (values: { fullName: string; groupId: string }) => {
-		const newStudent = {
-			id: uuidv4(),
-			fullName: values.fullName,
-			groupId: values.groupId,
+	const onStudentFinish = async (values: {
+		fullName: string
+		groupId: string
+	}) => {
+		try {
+			await addStudent(values).unwrap()
+			studentForm.resetFields(['fullName'])
+			message.success('Студент зачислен')
+		} catch {
+			message.error('Ошибка при добавлении студента')
 		}
-		dispatch(addStudent(newStudent))
-		studentForm.resetFields(['fullName']) // Очищаем только имя, чтобы группу не выбирать заново
-		message.success('Студент добавлен')
 	}
 
 	const columns = [
@@ -56,50 +70,59 @@ export default function ManagementPage() {
 			title: 'Группа',
 			dataIndex: 'groupId',
 			key: 'groupId',
-			render: (groupId: string) =>
-				groups.find(g => g.id === groupId)?.name || 'Неизвестно',
+			render: (id: string) => groups.find(g => g.id === id)?.name || '—',
+		},
+		{
+			title: 'Действие',
+			key: 'action',
+			render: (_: any, record: any) => (
+				<Button
+					danger
+					type='text'
+					icon={<DeleteOutlined />}
+					onClick={() => deleteStudent(record.id)}
+				>
+					Удалить
+				</Button>
+			),
 		},
 	]
 
 	return (
 		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			<Title level={2}>Управление данными</Title>
+			<Title level={2}>Управление</Title>
 
 			<Row gutter={[24, 24]}>
-				{/* Форма создания группы */}
 				<Col xs={24} md={12}>
 					<Card
 						title={
 							<Space>
-								<TeamOutlined /> Создать группу
+								<TeamOutlined /> Группы
 							</Space>
 						}
-						bordered={false}
 					>
 						<Form form={groupForm} layout='vertical' onFinish={onGroupFinish}>
 							<Form.Item
 								name='name'
-								label='Название группы'
+								label='Название'
 								rules={[{ required: true }]}
 							>
-								<Input placeholder='Например: ИТ-24' />
+								<Input placeholder='Напр: ИТ-24' />
 							</Form.Item>
 							<Button type='primary' htmlType='submit' block>
-								Добавить группу
+								Создать
 							</Button>
 						</Form>
 					</Card>
 				</Col>
 
-				{/* Форма добавления студента */}
 				<Col xs={24} md={12}>
 					<Card
 						title={
 							<Space>
-								<UserAddOutlined /> Добавить студента
+								<UserAddOutlined /> Студенты
 							</Space>
 						}
-						bordered={false}
 					>
 						<Form
 							form={studentForm}
@@ -108,10 +131,10 @@ export default function ManagementPage() {
 						>
 							<Form.Item
 								name='groupId'
-								label='Выбор группы'
+								label='Группа'
 								rules={[{ required: true }]}
 							>
-								<Select placeholder='Выберите группу'>
+								<Select placeholder='Выбор'>
 									{groups.map(g => (
 										<Select.Option key={g.id} value={g.id}>
 											{g.name}
@@ -121,13 +144,13 @@ export default function ManagementPage() {
 							</Form.Item>
 							<Form.Item
 								name='fullName'
-								label='ФИО студента'
+								label='ФИО'
 								rules={[{ required: true }]}
 							>
-								<Input placeholder='Иванов Иван Иванович' />
+								<Input placeholder='Имя Фамилия' />
 							</Form.Item>
 							<Button type='primary' htmlType='submit' block ghost>
-								Зачислить
+								Добавить
 							</Button>
 						</Form>
 					</Card>
@@ -135,14 +158,7 @@ export default function ManagementPage() {
 			</Row>
 
 			<Divider />
-
-			<Title level={3}>Список студентов</Title>
-			<Table
-				dataSource={students}
-				columns={columns}
-				rowKey='id'
-				pagination={{ pageSize: 5 }}
-			/>
+			<Table dataSource={students} columns={columns} rowKey='id' />
 		</div>
 	)
 }
