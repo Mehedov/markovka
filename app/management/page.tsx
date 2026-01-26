@@ -121,7 +121,7 @@ export default function ManagementPage() {
                 <TeamOutlined /> Группы
               </Space>
             }
-            variant="bordered"
+            variant="outlined"
           >
             <Form form={groupForm} layout="vertical" onFinish={onGroupFinish}>
               <Form.Item

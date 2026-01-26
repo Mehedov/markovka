@@ -1,8 +1,9 @@
 import { baseApi } from '@/services/api'
 import { configureStore } from '@reduxjs/toolkit'
+import themeSlice  from "./slices/themeSlice"
 
 export const store = configureStore({
-	reducer: {
+	reducer: {theme: themeSlice,
 		// Добавляем редьюсер API
 		[baseApi.reducerPath]: baseApi.reducer,
 	},

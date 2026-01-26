@@ -2,9 +2,15 @@
 "use client";
 import { ConfigProvider } from "antd";
 import { darkTheme, lightTheme } from "./themes";
+import { useSelector } from "react-redux";
+import { RootState } from "@/store";
 
-const selectTheme = lightTheme;
-
-export const AntdProvider = ({ children }: { children: React.ReactNode }) => (
-  <ConfigProvider theme={selectTheme}>{children}</ConfigProvider>
-);
+export const AntdProvider = ({ children }: { children: React.ReactNode }) => {
+  const isDarkMode = useSelector((state: RootState) => state.theme.isDarkMode);
+  
+  return (
+    <ConfigProvider theme={isDarkMode ? darkTheme : lightTheme}>
+      {children}
+    </ConfigProvider>
+  );
+};

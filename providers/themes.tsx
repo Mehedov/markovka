@@ -36,11 +36,10 @@ export const lightTheme = {
     borderRadius: 12,
   },
   components: {
-    Table: { headerColor: "#595959" },
+    Table: { headerColor: "#595959", cellPaddingBlock: 12 },
     Menu: {
-      darkItemSelectedBg: "#000000",
-      itemSelectedBg: "#000000",
-      
+      darkItemSelectedBg: "#transparent",
+      itemSelectedBg: "#transparent",
     },
     Card: {
       boxShadowTertiary: "0 4px 12px rgba(0,0,0,0.15)",

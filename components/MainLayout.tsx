@@ -12,8 +12,9 @@ import { Button, Layout, Menu, Space, Typography, theme } from "antd";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
-const { Header, Content, Footer } = Layout;
+const { Header, Content } = Layout;
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
@@ -91,6 +92,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
         </Space>
 
         <Space size="middle">
+          <ThemeSwitcher />
           {isLoggedIn ? (
             <>
               <Space style={{ marginRight: 16 }}>
