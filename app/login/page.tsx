@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 export default function LoginPage() {
 	const router = useRouter()
 
-	const onFinish = async (values: any) => {
+	const onFinish = async (values: { email: string, password: string }) => {
 		const { error } = await supabase.auth.signInWithPassword({
 			email: values.email, // Используем email вместо username
 			password: values.password,

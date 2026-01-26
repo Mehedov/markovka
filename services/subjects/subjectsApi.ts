@@ -3,7 +3,7 @@ import { baseApi } from '../api'
 
 const subjectsApi = baseApi.injectEndpoints({
 	endpoints: build => ({
-		getSubjects: build.query<any[], void>({
+		getSubjects: build.query<string[], void>({
 			queryFn: async () => {
 				const { data, error } = await supabase
 					.from('subjects')
