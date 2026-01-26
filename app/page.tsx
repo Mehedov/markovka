@@ -1,12 +1,6 @@
 'use client'
 
-import {
-	useGetAttendanceQuery,
-	useGetGroupsQuery,
-	useGetStudentsQuery,
-	useGetSubjectsQuery,
-	useUpdateAttendanceMutation,
-} from '@/services/api'
+
 import {
 	CheckCircleFilled,
 	CheckOutlined,
@@ -30,6 +24,10 @@ import { useMemo, useState } from 'react'
 
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
+import { useGetGroupsQuery } from '@/services/group/groupApi'
+import { useGetStudentsQuery } from '@/services/students/studentsApi'
+import { useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
+import { useGetAttendanceQuery, useUpdateAttendanceMutation } from '@/services/attendance/attendanceApi'
 
 dayjs.locale('ru')
 const { Title, Text } = Typography

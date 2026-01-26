@@ -1,14 +1,14 @@
-import { attendanceApi } from '@/services/api'
+import { baseApi } from '@/services/api'
 import { configureStore } from '@reduxjs/toolkit'
 
 export const store = configureStore({
 	reducer: {
 		// Добавляем редьюсер API
-		[attendanceApi.reducerPath]: attendanceApi.reducer,
+		[baseApi.reducerPath]: baseApi.reducer,
 	},
 	// Middleware нужен для кэширования, инвалидации и других фишек RTK Query
 	middleware: getDefaultMiddleware =>
-		getDefaultMiddleware().concat(attendanceApi.middleware),
+		getDefaultMiddleware().concat(baseApi.middleware),
 })
 
 export type RootState = ReturnType<typeof store.getState>

@@ -1,16 +1,9 @@
 'use client'
 
-import {
-	useAddGroupMutation,
-	useAddStudentMutation,
-	useAddSubjectMutation,
-	useDeleteGroupMutation,
-	useDeleteStudentMutation,
-	useDeleteSubjectMutation,
-	useGetGroupsQuery,
-	useGetStudentsQuery,
-	useGetSubjectsQuery,
-} from '@/services/api'
+
+import { useAddGroupMutation, useDeleteGroupMutation, useGetGroupsQuery } from '@/services/group/groupApi'
+import { useAddStudentMutation, useDeleteStudentMutation, useGetStudentsQuery } from '@/services/students/studentsApi'
+import { useAddSubjectMutation, useDeleteSubjectMutation, useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
 import {
 	BookOutlined,
 	DeleteOutlined,
