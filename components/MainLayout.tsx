@@ -76,17 +76,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
         }}
       >
         <Space size="large">
-          <div
-            style={{
-              color: antdToken.colorPrimary,
-              fontWeight: "bold",
-              fontSize: "20px",
-              letterSpacing: "1px",
-            }}
-          >
-            ATTENDANCE<span style={{ color: "#fff" }}>PRO</span>
-          </div>
-
           <Menu
             theme="dark"
             mode="horizontal"
@@ -137,10 +126,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
       >
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>{children}</div>
       </Content>
-
-      <Footer style={{ textAlign: "center", color: "#8c8c8c" }}>
-        Attendance Management System ©{new Date().getFullYear()}
-      </Footer>
     </Layout>
   );
 };
