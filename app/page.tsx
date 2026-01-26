@@ -1,38 +1,36 @@
 "use client";
 
-import {
-  useGetAttendanceQuery,
-  useGetGroupsQuery,
-  useGetStudentsQuery,
-  useGetSubjectsQuery,
-  useUpdateAttendanceMutation,
-} from "@/services/api";
+
 import {
   CheckCircleFilled,
   CheckOutlined,
   CloseCircleFilled,
 } from "@ant-design/icons";
 import {
-  Alert,
-  Card,
-  Col,
-  DatePicker,
-  Progress,
-  Row,
-  Select,
-  Space,
-  Statistic,
-  Table,
-  theme,
-  Typography,
-} from "antd";
-import { useMemo, useState } from "react";
+	Alert,
+	Card,
+	Col,
+	DatePicker,
+	Progress,
+	Row,
+	Select,
+	Space,
+	Statistic,
+	Table,
+	theme,
+	Typography,
+} from 'antd'
+import { useMemo, useState } from 'react'
 
-import dayjs from "dayjs";
-import "dayjs/locale/ru";
+import dayjs from 'dayjs'
+import 'dayjs/locale/ru'
+import { useGetGroupsQuery } from '@/services/group/groupApi'
+import { useGetStudentsQuery } from '@/services/students/studentsApi'
+import { useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
+import { useGetAttendanceQuery, useUpdateAttendanceMutation } from '@/services/attendance/attendanceApi'
 
-dayjs.locale("ru");
-const { Title, Text } = Typography;
+dayjs.locale('ru')
+const { Title, Text } = Typography
 
 export default function AttendancePage() {
   const { token } = theme.useToken();
