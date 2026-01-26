@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import { baseApi } from '../api'
+import { Group } from '@/types/attendance'
 
 const groupApi = baseApi.injectEndpoints({
 	endpoints: build => ({
-		getGroups: build.query<any[], void>({
+		getGroups: build.query<Group[], void>({
 			queryFn: async () => {
 				const { data, error } = await supabase
 					.from('groups')
