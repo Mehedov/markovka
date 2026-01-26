@@ -241,16 +241,18 @@ export default function AttendancePage() {
 								/>
 							</Card>
 						</Col>
-						<Card>
-							<div>Процент посещаемости</div>
-							<div
-								style={{
-									fontSize: '20px',
-								}}
-							>
-								{stats.presents}%
-							</div>
-						</Card>
+						<Col span={8}>
+							<Card>
+								<div>Процент посещаемости</div>
+								<div
+									style={{
+										fontSize: '20px',
+									}}
+								>
+									{stats.presents}%
+								</div>
+							</Card>
+						</Col>
 					</Row>
 					<Table
 						dataSource={studentsInGroup}
