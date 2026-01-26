@@ -5,7 +5,7 @@ export async function DELETE(
 	req: Request,
 	{ params }: { params: { id: string } },
 ) {
-	const { id } = params
+	const { id } = await params
 
 	// Фильтруем массив, удаляя студента с нужным ID
 	db.students = db.students.filter(s => s.id !== id)

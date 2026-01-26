@@ -1,18 +1,22 @@
 'use client'
 
 import {
-	CalendarOutlined,
+	useGetAttendanceQuery,
+	useGetGroupsQuery,
+	useGetStudentsQuery,
+	useGetSubjectsQuery,
+	useUpdateAttendanceMutation,
+} from '@/services/api'
+import {
 	CheckCircleFilled,
 	CheckOutlined,
 	CloseCircleFilled,
-	SearchOutlined,
 } from '@ant-design/icons'
 import {
+	Alert,
 	Card,
 	Col,
 	DatePicker,
-	Empty,
-	Input,
 	Progress,
 	Row,
 	Select,
@@ -24,14 +28,6 @@ import {
 } from 'antd'
 import { useMemo, useState } from 'react'
 
-// Импортируем хуки нашего API
-import {
-	useGetAttendanceQuery,
-	useGetGroupsQuery,
-	useGetStudentsQuery,
-	useUpdateAttendanceMutation,
-} from '@/services/api'
-
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
 
@@ -41,15 +37,31 @@ const { Title, Text } = Typography
 export default function AttendancePage() {
 	const { token } = theme.useToken()
 
-	// 1. Получаем данные с бэкенда через хуки
+	// Состояния фильтров
+	const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+	const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
+		null,
+	)
+	const [selectedMonth, setSelectedMonth] = useState(dayjs())
+
+	// Данные из RTK Query (Supabase)
 	const { data: groups = [] } = useGetGroupsQuery()
-	const { data: students = [] } = useGetStudentsQuery()
-	const { data: records = {} } = useGetAttendanceQuery()
+	const { data: allStudents = [] } = useGetStudentsQuery()
+	const { data: allSubjects = [] } = useGetSubjectsQuery()
+	const { data: attendanceRecords = [] } = useGetAttendanceQuery()
 	const [updateAttendance] = useUpdateAttendanceMutation()
 
-	const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
-	const [searchName, setSearchName] = useState('')
-	const [selectedMonth, setSelectedMonth] = useState(dayjs())
+	// Фильтруем дисциплины по выбранной группе
+	const filteredSubjects = useMemo(
+		() => allSubjects.filter(sub => sub.group_id === selectedGroupId),
+		[allSubjects, selectedGroupId],
+	)
+
+	// Фильтруем студентов по выбранной группе
+	const studentsInGroup = useMemo(
+		() => allStudents.filter(s => s.group_id === selectedGroupId),
+		[allStudents, selectedGroupId],
+	)
 
 	const daysInMonth = useMemo(() => {
 		const startOfMonth = selectedMonth.startOf('month')
@@ -58,26 +70,19 @@ export default function AttendancePage() {
 		)
 	}, [selectedMonth])
 
-	const filteredStudents = useMemo(() => {
-		return students.filter(s => {
-			const matchGroup = selectedGroupId ? s.groupId === selectedGroupId : true
-			const matchName = s.fullName
-				.toLowerCase()
-				.includes(searchName.toLowerCase())
-			return matchGroup && matchName
-		})
-	}, [students, selectedGroupId, searchName])
-
+	// Расчет статистики для выбранной группы и дисциплины
 	const stats = useMemo(() => {
-		const monthKey = selectedMonth.format('YYYY-MM')
-		const studentIds = new Set(filteredStudents.map(s => s.id))
+		if (!selectedSubjectId) return { presents: 0, total: 0, percent: 0 }
 
-		const relevantKeys = Object.keys(records).filter(
-			key => key.includes(monthKey) && studentIds.has(key.split('_')[0]),
+		const relevant = attendanceRecords.filter(
+			r =>
+				r.subject_id === selectedSubjectId &&
+				studentsInGroup.some(s => s.id === r.student_id) &&
+				dayjs(r.date).isSame(selectedMonth, 'month'),
 		)
 
-		const presents = relevantKeys.filter(k => records[k] === 'present').length
-		const absents = relevantKeys.filter(k => records[k] === 'absent').length
+		const presents = relevant.filter(r => r.status === 'present').length
+		const absents = relevant.filter(r => r.status === 'absent').length
 		const total = presents + absents
 
 		return {
@@ -85,22 +90,29 @@ export default function AttendancePage() {
 			total,
 			percent: total > 0 ? Math.round((presents / total) * 100) : 0,
 		}
-	}, [records, selectedMonth, filteredStudents])
+	}, [attendanceRecords, selectedSubjectId, studentsInGroup, selectedMonth])
 
-	// Логика переключения статуса через сервер
-	const handleToggle = async (studentId: string, date: string) => {
-		const key = `${studentId}_${date}`
-		const currentStatus = records[key] || 'none'
+	const handleToggle = async (studentId: string, dateStr: string) => {
+		if (!selectedSubjectId) return
 
+		const currentRecord = attendanceRecords.find(
+			r =>
+				r.student_id === studentId &&
+				r.subject_id === selectedSubjectId &&
+				r.date === dateStr,
+		)
+
+		const currentStatus = currentRecord?.status || 'none'
 		const nextStatusMap: Record<string, string> = {
 			none: 'present',
 			present: 'absent',
 			absent: 'none',
 		}
 
-		// Отправляем PATCH запрос на сервер
 		await updateAttendance({
-			key,
+			student_id: studentId,
+			subject_id: selectedSubjectId,
+			date: dateStr,
 			status: nextStatusMap[currentStatus],
 		})
 	}
@@ -108,54 +120,35 @@ export default function AttendancePage() {
 	const columns = [
 		{
 			title: 'Студент',
-			dataIndex: 'fullName',
-			key: 'name',
+			dataIndex: 'full_name',
 			fixed: 'left' as const,
-			width: 220,
-			render: (text: string) => (
-				<Text strong style={{ color: token.colorPrimary }}>
-					{text}
-				</Text>
-			),
+			width: 200,
+			render: (text: string) => <Text strong>{text}</Text>,
 		},
 		...daysInMonth.map(day => {
 			const dateStr = day.format('YYYY-MM-DD')
-			const isWeekend = day.day() === 0 || day.day() === 6
-			const isToday = day.isSame(dayjs(), 'day')
-
 			return {
 				title: (
-					<div
-						style={{
-							textAlign: 'center',
-							padding: '4px 0',
-							background: isToday ? `${token.colorPrimary}22` : 'transparent',
-							borderRadius: 8,
-							border: isToday ? `1px solid ${token.colorPrimary}` : 'none',
-						}}
-					>
-						<div
-							style={{
-								fontSize: '12px',
-								color: isWeekend ? token.colorError : 'inherit',
-							}}
-						>
-							{day.format('DD')}
-						</div>
-						<div style={{ fontSize: '10px', opacity: 0.6 }}>
-							{day.format('dd')}
-						</div>
+					<div style={{ fontSize: '12px' }}>
+						{day.format('DD')}
+						<br />
+						<small>{day.format('dd')}</small>
 					</div>
 				),
-				key: dateStr,
-				width: 55,
 				align: 'center' as const,
+				width: 50,
 				render: (_: any, record: any) => {
-					const status = records[`${record.id}_${dateStr}`] || 'none'
+					const res = attendanceRecords.find(
+						r =>
+							r.student_id === record.id &&
+							r.subject_id === selectedSubjectId &&
+							r.date === dateStr,
+					)
+					const status = res?.status || 'none'
 					return (
 						<div
 							onClick={() => handleToggle(record.id, dateStr)}
-							style={{ cursor: 'pointer', fontSize: '18px' }}
+							style={{ cursor: 'pointer' }}
 						>
 							{status === 'present' && (
 								<CheckCircleFilled style={{ color: token.colorSuccess }} />
@@ -166,12 +159,11 @@ export default function AttendancePage() {
 							{status === 'none' && (
 								<div
 									style={{
-										width: 16,
-										height: 16,
-										border: `1px dashed ${token.colorBorder}`,
+										width: 14,
+										height: 14,
+										border: '1px dashed #ccc',
 										borderRadius: '50%',
 										margin: '0 auto',
-										opacity: 0.5,
 									}}
 								/>
 							)}
@@ -184,85 +176,77 @@ export default function AttendancePage() {
 
 	return (
 		<Space direction='vertical' size='large' style={{ width: '100%' }}>
-			<Card bordered={false}>
-				<Row gutter={[16, 16]} align='middle'>
-					<Col xs={24} lg={8}>
-						<Title level={4} style={{ margin: 0 }}>
-							Учет посещаемости
-						</Title>
-					</Col>
-					<Col xs={24} md={8} lg={5}>
+			<Card>
+				<Row gutter={[16, 16]}>
+					<Col xs={24} md={6}>
 						<Select
-							placeholder='Группа'
+							placeholder='Выберите группу'
 							style={{ width: '100%' }}
-							allowClear
-							onChange={setSelectedGroupId}
-							options={groups.map((g: any) => ({ label: g.name, value: g.id }))}
+							onChange={val => {
+								setSelectedGroupId(val)
+								setSelectedSubjectId(null)
+							}}
+							options={groups.map(g => ({ label: g.name, value: g.id }))}
 						/>
 					</Col>
-					<Col xs={24} md={8} lg={6}>
-						<Input
-							placeholder='Поиск...'
-							prefix={<SearchOutlined />}
-							onChange={e => setSearchName(e.target.value)}
+					<Col xs={24} md={6}>
+						<Select
+							placeholder='Выберите дисциплину'
+							style={{ width: '100%' }}
+							disabled={!selectedGroupId}
+							value={selectedSubjectId}
+							onChange={setSelectedSubjectId}
+							options={filteredSubjects.map(s => ({
+								label: s.name,
+								value: s.id,
+							}))}
 						/>
 					</Col>
-					<Col xs={24} md={8} lg={5}>
+					<Col xs={24} md={6}>
 						<DatePicker
 							picker='month'
 							value={selectedMonth}
 							onChange={d => d && setSelectedMonth(d)}
-							format='MMMM YYYY'
 							style={{ width: '100%' }}
 						/>
 					</Col>
 				</Row>
 			</Card>
 
-			{selectedGroupId || searchName ? (
+			{selectedGroupId && selectedSubjectId ? (
 				<>
-					<Row gutter={[16, 16]}>
+					<Row gutter={16}>
 						<Col span={8}>
 							<Card>
 								<Statistic
-									title='Всего'
-									value={stats.total}
-									prefix={<CalendarOutlined />}
-								/>
-							</Card>
-						</Col>
-						<Col span={8}>
-							<Card>
-								<Statistic
-									title='Явка'
+									title='Явка (за месяц)'
 									value={stats.presents}
-									valueStyle={{ color: token.colorSuccess }}
 									prefix={<CheckOutlined />}
 								/>
 							</Card>
 						</Col>
-						<Col span={8}>
+						<Col span={16}>
 							<Card>
-								<Progress
-									percent={stats.percent}
-									strokeColor={token.colorPrimary}
-								/>
+								<Text>Процент посещаемости по дисциплине</Text>
+								<Progress percent={stats.percent} />
 							</Card>
 						</Col>
 					</Row>
-					<Card bordered={false} bodyStyle={{ padding: 0 }}>
-						<Table
-							dataSource={filteredStudents}
-							columns={columns}
-							rowKey='id'
-							scroll={{ x: 'max-content' }}
-							pagination={false}
-							bordered
-						/>
-					</Card>
+					<Table
+						dataSource={studentsInGroup}
+						columns={columns}
+						rowKey='id'
+						scroll={{ x: 'max-content' }}
+						pagination={false}
+						bordered
+					/>
 				</>
 			) : (
-				<Empty description='Выберите группу' style={{ marginTop: 100 }} />
+				<Alert
+					message='Выберите группу и дисциплину для начала работы'
+					type='info'
+					showIcon
+				/>
 			)}
 		</Space>
 	)

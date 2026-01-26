@@ -1,6 +1,18 @@
 'use client'
 
 import {
+	useAddGroupMutation,
+	useAddStudentMutation,
+	useAddSubjectMutation,
+	useDeleteGroupMutation,
+	useDeleteStudentMutation,
+	useDeleteSubjectMutation,
+	useGetGroupsQuery,
+	useGetStudentsQuery,
+	useGetSubjectsQuery,
+} from '@/services/api'
+import {
+	BookOutlined,
 	DeleteOutlined,
 	TeamOutlined,
 	UserAddOutlined,
@@ -13,110 +25,193 @@ import {
 	Form,
 	Input,
 	message,
+	Popconfirm,
 	Row,
 	Select,
 	Space,
 	Table,
 	Typography,
 } from 'antd'
-// Импортируем хуки API
-import {
-	useAddGroupMutation,
-	useAddStudentMutation,
-	useDeleteStudentMutation,
-	useGetGroupsQuery,
-	useGetStudentsQuery,
-} from '@/services/api'
 
-const { Title } = Typography
+const { Title, Text } = Typography
 
 export default function ManagementPage() {
 	const [groupForm] = Form.useForm()
 	const [studentForm] = Form.useForm()
-	const [deleteStudent] = useDeleteStudentMutation()
+	const [subjectForm] = Form.useForm()
 
-	// Получаем данные и функции мутации
+	// Данные
 	const { data: groups = [] } = useGetGroupsQuery()
 	const { data: students = [] } = useGetStudentsQuery()
+	const { data: subjects = [] } = useGetSubjectsQuery()
+
+	// Мутации
 	const [addGroup] = useAddGroupMutation()
+	const [deleteGroup] = useDeleteGroupMutation()
 	const [addStudent] = useAddStudentMutation()
+	const [deleteStudent] = useDeleteStudentMutation()
+	const [addSubject] = useAddSubjectMutation()
+	const [deleteSubject] = useDeleteSubjectMutation()
 
-	const onGroupFinish = async (values: { name: string }) => {
-		try {
-			await addGroup(values).unwrap()
-			groupForm.resetFields()
-			message.success(`Группа создана`)
-		} catch {
-			message.error('Ошибка при создании группы')
-		}
+	// Обработчики создания
+	const onGroupFinish = async (values: any) => {
+		await addGroup(values).unwrap()
+		groupForm.resetFields()
+		message.success('Группа создана')
 	}
 
-	const onStudentFinish = async (values: {
-		fullName: string
-		groupId: string
-	}) => {
-		try {
-			await addStudent(values).unwrap()
-			studentForm.resetFields(['fullName'])
-			message.success('Студент зачислен')
-		} catch {
-			message.error('Ошибка при добавлении студента')
-		}
+	const onStudentFinish = async (values: any) => {
+		await addStudent(values).unwrap()
+		studentForm.resetFields(['full_name'])
+		message.success('Студент добавлен')
 	}
 
-	const columns = [
-		{ title: 'ФИО Студента', dataIndex: 'fullName', key: 'fullName' },
+	const onSubjectFinish = async (values: any) => {
+		await addSubject(values).unwrap()
+		subjectForm.resetFields(['name'])
+		message.success('Дисциплина добавлена')
+	}
+
+	// Колонки таблиц
+	const studentColumns = [
+		{ title: 'ФИО Студента', dataIndex: 'full_name', key: 'full_name' },
 		{
 			title: 'Группа',
-			dataIndex: 'groupId',
-			key: 'groupId',
+			dataIndex: 'group_id',
 			render: (id: string) => groups.find(g => g.id === id)?.name || '—',
 		},
 		{
 			title: 'Действие',
-			key: 'action',
 			render: (_: any, record: any) => (
-				<Button
-					danger
-					type='text'
-					icon={<DeleteOutlined />}
-					onClick={() => deleteStudent(record.id)}
+				<Popconfirm
+					title='Удалить студента?'
+					onConfirm={() => deleteStudent(record.id)}
 				>
-					Удалить
-				</Button>
+					<Button type='text' danger icon={<DeleteOutlined />} />
+				</Popconfirm>
+			),
+		},
+	]
+
+	const subjectColumns = [
+		{ title: 'Дисциплина', dataIndex: 'name', key: 'name' },
+		{
+			title: 'Для группы',
+			dataIndex: 'group_id',
+			render: (id: string) => groups.find(g => g.id === id)?.name || '—',
+		},
+		{
+			title: 'Действие',
+			render: (_: any, record: any) => (
+				<Popconfirm
+					title='Удалить дисциплину?'
+					onConfirm={() => deleteSubject(record.id)}
+				>
+					<Button type='text' danger icon={<DeleteOutlined />} />
+				</Popconfirm>
 			),
 		},
 	]
 
 	return (
-		<div style={{ maxWidth: 1200, margin: '0 auto' }}>
-			<Title level={2}>Управление</Title>
+		<div style={{ padding: '24px' }}>
+			<Title level={2}>Панель управления</Title>
 
 			<Row gutter={[24, 24]}>
-				<Col xs={24} md={12}>
+				{/* Секция Групп */}
+				<Col xs={24} lg={8}>
 					<Card
 						title={
 							<Space>
 								<TeamOutlined /> Группы
 							</Space>
 						}
+						variant='bordered'
 					>
 						<Form form={groupForm} layout='vertical' onFinish={onGroupFinish}>
 							<Form.Item
 								name='name'
-								label='Название'
+								label='Название группы'
 								rules={[{ required: true }]}
 							>
 								<Input placeholder='Напр: ИТ-24' />
 							</Form.Item>
 							<Button type='primary' htmlType='submit' block>
-								Создать
+								Создать группу
+							</Button>
+						</Form>
+						<Divider>Список групп</Divider>
+						<div style={{ maxHeight: 300, overflowY: 'auto' }}>
+							{groups.map((g: any) => (
+								<div
+									key={g.id}
+									style={{
+										display: 'flex',
+										justifyContent: 'space-between',
+										marginBottom: 8,
+									}}
+								>
+									<Text>{g.name}</Text>
+									<Popconfirm
+										title='Удалить группу и всех её студентов?'
+										onConfirm={() => deleteGroup(g.id)}
+									>
+										<Button
+											type='text'
+											danger
+											icon={<DeleteOutlined />}
+											size='small'
+										/>
+									</Popconfirm>
+								</div>
+							))}
+						</div>
+					</Card>
+				</Col>
+
+				{/* Секция Дисциплин */}
+				<Col xs={24} lg={8}>
+					<Card
+						title={
+							<Space>
+								<BookOutlined /> Дисциплины
+							</Space>
+						}
+					>
+						<Form
+							form={subjectForm}
+							layout='vertical'
+							onFinish={onSubjectFinish}
+						>
+							<Form.Item
+								name='group_id'
+								label='Группа'
+								rules={[{ required: true }]}
+							>
+								<Select placeholder='Выберите группу'>
+									{groups.map(g => (
+										<Select.Option key={g.id} value={g.id}>
+											{g.name}
+										</Select.Option>
+									))}
+								</Select>
+							</Form.Item>
+							<Form.Item
+								name='name'
+								label='Название дисциплины'
+								rules={[{ required: true }]}
+							>
+								<Input placeholder='Напр: Высшая математика' />
+							</Form.Item>
+							<Button type='primary' htmlType='submit' block ghost>
+								Добавить предмет
 							</Button>
 						</Form>
 					</Card>
 				</Col>
 
-				<Col xs={24} md={12}>
+				{/* Секция Студентов */}
+				<Col xs={24} lg={8}>
 					<Card
 						title={
 							<Space>
@@ -130,11 +225,11 @@ export default function ManagementPage() {
 							onFinish={onStudentFinish}
 						>
 							<Form.Item
-								name='groupId'
+								name='group_id'
 								label='Группа'
 								rules={[{ required: true }]}
 							>
-								<Select placeholder='Выбор'>
+								<Select placeholder='Выберите группу'>
 									{groups.map(g => (
 										<Select.Option key={g.id} value={g.id}>
 											{g.name}
@@ -143,22 +238,42 @@ export default function ManagementPage() {
 								</Select>
 							</Form.Item>
 							<Form.Item
-								name='fullName'
-								label='ФИО'
+								name='full_name'
+								label='ФИО Студента'
 								rules={[{ required: true }]}
 							>
-								<Input placeholder='Имя Фамилия' />
+								<Input placeholder='Иван Иванов' />
 							</Form.Item>
 							<Button type='primary' htmlType='submit' block ghost>
-								Добавить
+								Зачислить студента
 							</Button>
 						</Form>
 					</Card>
 				</Col>
 			</Row>
 
-			<Divider />
-			<Table dataSource={students} columns={columns} rowKey='id' />
+			<Divider orientation='left'>Общий реестр</Divider>
+
+			<Row gutter={[24, 24]}>
+				<Col xs={24} xl={12}>
+					<Title level={4}>Дисциплины по группам</Title>
+					<Table
+						dataSource={subjects}
+						columns={subjectColumns}
+						rowKey='id'
+						pagination={{ pageSize: 5 }}
+					/>
+				</Col>
+				<Col xs={24} xl={12}>
+					<Title level={4}>Список всех студентов</Title>
+					<Table
+						dataSource={students}
+						columns={studentColumns}
+						rowKey='id'
+						pagination={{ pageSize: 5 }}
+					/>
+				</Col>
+			</Row>
 		</div>
 	)
 }

@@ -1,23 +1,23 @@
 'use client'
-import { LockOutlined, UserOutlined } from '@ant-design/icons'
-import { Button, Card, Form, Input, Typography, message } from 'antd'
+import { supabase } from '@/lib/supabase'
+import { Button, Card, Form, Input, message } from 'antd'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
 	const router = useRouter()
 
 	const onFinish = async (values: any) => {
-		const res = await fetch('/api/auth/login', {
-			method: 'POST',
-			body: JSON.stringify(values),
+		const { error } = await supabase.auth.signInWithPassword({
+			email: values.email, // Используем email вместо username
+			password: values.password,
 		})
 
-		if (res.ok) {
-			message.success('Добро пожаловать, админ!')
-			router.push('/management')
-			router.refresh() // Обновляем состояние middleware
+		if (error) {
+			message.error('Ошибка входа: ' + error.message)
 		} else {
-			message.error('Доступ запрещен')
+			message.success('Вы вошли!')
+			router.push('/management')
+			router.refresh()
 		}
 	}
 
@@ -30,44 +30,23 @@ export default function LoginPage() {
 				height: '80vh',
 			}}
 		>
-			<Card
-				style={{
-					width: 350,
-					borderRadius: 16,
-					boxShadow: '0 8px 24px rgba(0,0,0,0.2)',
-				}}
-			>
-				<Typography.Title level={3} style={{ textAlign: 'center' }}>
-					Admin Access
-				</Typography.Title>
+			<Card title='Вход для администратора' style={{ width: 400 }}>
 				<Form onFinish={onFinish} layout='vertical'>
 					<Form.Item
-						name='username'
-						rules={[{ required: true, message: 'Введите логин' }]}
+						name='email'
+						label='Email'
+						rules={[{ required: true, type: 'email' }]}
 					>
-						<Input
-							prefix={<UserOutlined />}
-							placeholder='Логин (admin)'
-							size='large'
-						/>
+						<Input placeholder='admin@example.com' />
 					</Form.Item>
 					<Form.Item
 						name='password'
-						rules={[{ required: true, message: 'Введите пароль' }]}
+						label='Пароль'
+						rules={[{ required: true }]}
 					>
-						<Input.Password
-							prefix={<LockOutlined />}
-							placeholder='Пароль (admin)'
-							size='large'
-						/>
+						<Input.Password />
 					</Form.Item>
-					<Button
-						type='primary'
-						htmlType='submit'
-						block
-						size='large'
-						style={{ borderRadius: 8 }}
-					>
+					<Button type='primary' htmlType='submit' block>
 						Войти
 					</Button>
 				</Form>

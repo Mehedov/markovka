@@ -1,5 +1,6 @@
 'use client'
 
+import { supabase } from '@/lib/supabase'
 import {
 	CalendarOutlined,
 	CrownOutlined,
@@ -18,19 +19,28 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const router = useRouter()
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
+
 	const [isLoggedIn, setIsLoggedIn] = useState(false)
 
-	// Синхронизируем состояние авторизации с куками
 	useEffect(() => {
-		const hasToken = document.cookie.includes('auth_token')
-		setIsLoggedIn(hasToken)
-	}, [pathname]) // Срабатывает при смене страницы
+		// 1. Проверяем текущую сессию
+		supabase.auth.getSession().then(({ data: { session } }) => {
+			setIsLoggedIn(!!session)
+		})
+
+		// 2. Подписываемся на изменения (логин/логаут)
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((_event, session) => {
+			setIsLoggedIn(!!session)
+		})
+
+		return () => subscription.unsubscribe()
+	}, [])
 
 	const handleLogout = async () => {
-		await fetch('/api/auth/logout', { method: 'POST' })
-		setIsLoggedIn(false)
-		router.push('/login')
-		router.refresh()
+		await supabase.auth.signOut()
+		router.push('/')
 	}
 
 	// Формируем пункты меню динамически
