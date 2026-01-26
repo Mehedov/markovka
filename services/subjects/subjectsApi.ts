@@ -1,9 +1,10 @@
 import { supabase } from '@/lib/supabase'
 import { baseApi } from '../api'
+import { Subjects } from '@/types/attendance'
 
 const subjectsApi = baseApi.injectEndpoints({
 	endpoints: build => ({
-		getSubjects: build.query<string[], void>({
+		getSubjects: build.query<Subjects[], void>({
 			queryFn: async () => {
 				const { data, error } = await supabase
 					.from('subjects')
