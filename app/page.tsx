@@ -10,7 +10,6 @@ import {
 	Card,
 	Col,
 	DatePicker,
-	Progress,
 	Row,
 	Select,
 	Space,
@@ -242,12 +241,16 @@ export default function AttendancePage() {
 								/>
 							</Card>
 						</Col>
-						<Col span={16}>
-							<Card>
-								<Text>Процент посещаемости по дисциплине</Text>
-								<Progress percent={stats.percent} />
-							</Card>
-						</Col>
+						<Card>
+							<div>Процент посещаемости</div>
+							<div
+								style={{
+									fontSize: '20px',
+								}}
+							>
+								{stats.presents}%
+							</div>
+						</Card>
 					</Row>
 					<Table
 						dataSource={studentsInGroup}
