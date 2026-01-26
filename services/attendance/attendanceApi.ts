@@ -1,12 +1,15 @@
 import { supabase } from '@/lib/supabase'
 import { baseApi } from '../api'
+import { Attendance } from '@/types/attendance'
 
 const attendanceApi = baseApi.injectEndpoints({
 	endpoints: build => ({
 		// ПОСЕЩАЕМОСТЬ
-		getAttendance: build.query<any[], void>({
+		getAttendance: build.query<Attendance[], void>({
 			queryFn: async () => {
 				const { data, error } = await supabase.from('attendance').select('*')
+				console.log(data)
+
 				if (error) return { error }
 				return { data }
 			},
