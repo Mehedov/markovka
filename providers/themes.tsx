@@ -8,6 +8,9 @@ export const darkTheme = {
     borderRadius: 12,
     colorBgLayout: "#141414",
     colorBgContainer: "#141414",
+    motionDurationFast: "0s",
+    motionDurationMid: "0s",
+    motionDurationSlow: "0s",
   },
   components: {
     Table: {
@@ -26,6 +29,7 @@ export const darkTheme = {
 
 export const lightTheme = {
   algorithm: theme.defaultAlgorithm,
+
   token: {
     colorPrimary: "#1dbaee",
     colorText: "#000000",
@@ -34,6 +38,9 @@ export const lightTheme = {
     colorBgLayout: "#f5f5f5",
     colorBgContainer: "#ffffff",
     borderRadius: 12,
+    motionDurationFast: "0s",
+    motionDurationMid: "0s",
+    motionDurationSlow: "0s",
   },
   components: {
     Table: { headerColor: "#595959", cellPaddingBlock: 12 },
