@@ -11,52 +11,83 @@ import {
   useGetStudentsQuery,
 } from "@/services/students/studentsApi";
 import {
-  useAddSubjectMutation,
-  useDeleteSubjectMutation,
-  useGetSubjectsQuery,
-} from "@/services/subjects/subjectsApi";
-import { Group } from "@/types/attendance";
+	useAddSubjectMutation,
+	useDeleteSubjectMutation,
+	useGetSubjectsQuery,
+} from '@/services/subjects/subjectsApi'
 import {
-  BookOutlined,
-  DeleteOutlined,
-  TeamOutlined,
-  UserAddOutlined,
-} from "@ant-design/icons";
+	useAssignSubjectToTeacherMutation,
+	useGetProfilesQuery,
+	useGetTeacherRelationsQuery,
+	useRemoveTeacherRelationMutation,
+} from '@/services/teacher/teacherApi'
+import { Group } from '@/types/attendance'
 import {
-  Button,
-  Card,
-  Col,
-  Divider,
-  Form,
-  Input,
-  message,
-  Popconfirm,
-  Row,
-  Select,
-  Space,
-  Table,
-  Typography,
-} from "antd";
+	BookOutlined,
+	DeleteOutlined,
+	LinkOutlined,
+	TeamOutlined,
+	UserAddOutlined,
+	UserOutlined,
+} from '@ant-design/icons'
+import {
+	Button,
+	Card,
+	Col,
+	Divider,
+	Form,
+	Input,
+	List,
+	message,
+	Popconfirm,
+	Row,
+	Select,
+	Space,
+	Table,
+	Typography,
+} from 'antd'
 
 const { Title, Text } = Typography;
 
 export default function ManagementPage() {
-  const [groupForm] = Form.useForm();
-  const [studentForm] = Form.useForm();
-  const [subjectForm] = Form.useForm();
+	const [groupForm] = Form.useForm()
+	const [studentForm] = Form.useForm()
+	const [subjectForm] = Form.useForm()
+	const [form] = Form.useForm()
 
-  // Данные
-  const { data: groups = [] } = useGetGroupsQuery();
-  const { data: students = [] } = useGetStudentsQuery();
-  const { data: subjects = [] } = useGetSubjectsQuery();
+	// Данные
+	const { data: groups = [] } = useGetGroupsQuery()
+	const { data: students = [] } = useGetStudentsQuery()
+	const { data: subjects = [] } = useGetSubjectsQuery()
+	const { data: relations = [] } = useGetTeacherRelationsQuery()
 
-  // Мутации
-  const [addGroup] = useAddGroupMutation();
-  const [deleteGroup] = useDeleteGroupMutation();
-  const [addStudent] = useAddStudentMutation();
-  const [deleteStudent] = useDeleteStudentMutation();
-  const [addSubject] = useAddSubjectMutation();
-  const [deleteSubject] = useDeleteSubjectMutation();
+	// Сделай так:
+	const { data: profiles = [], refetch: refetchProfiles } = useGetProfilesQuery(
+		undefined,
+		{
+			refetchOnMountOrArgChange: true,
+		},
+	)
+
+	// Мутации
+	const [addGroup] = useAddGroupMutation()
+	const [deleteGroup] = useDeleteGroupMutation()
+	const [addStudent] = useAddStudentMutation()
+	const [deleteStudent] = useDeleteStudentMutation()
+	const [addSubject] = useAddSubjectMutation()
+	const [deleteSubject] = useDeleteSubjectMutation()
+	const [assignSubject] = useAssignSubjectToTeacherMutation()
+	const [removeRelation] = useRemoveTeacherRelationMutation()
+
+	const onAssignFinish = async (values: any) => {
+		try {
+			await assignSubject(values).unwrap()
+			message.success('Предмет закреплен за учителем')
+			form.resetFields(['subject_id'])
+		} catch (e) {
+			message.error('Ошибка: возможно связь уже существует')
+		}
+	}
 
   // Обработчики создания
   const onGroupFinish = async (values: { name: string }) => {
@@ -122,9 +153,134 @@ export default function ManagementPage() {
     },
   ];
 
-  return (
-    <div style={{ padding: "24px" }}>
-      <Title level={2}>Панель управления</Title>
+			<Row gutter={[24, 24]}>
+				{/* Форма назначения */}
+				<Col xs={24} lg={12}>
+					<Card
+						title={
+							<Space>
+								<LinkOutlined /> Назначить предмет учителю
+							</Space>
+						}
+					>
+						<Form form={form} layout='vertical' onFinish={onAssignFinish}>
+							<Form.Item
+								name='teacher_id'
+								label='Выберите учителя'
+								rules={[{ required: true }]}
+							>
+								<Select placeholder='Email учителя'>
+									{profiles.map(p => (
+										<Select.Option key={p.id} value={p.id}>
+											{p.email}
+										</Select.Option>
+									))}
+								</Select>
+							</Form.Item>
+							<Form.Item
+								name='subject_id'
+								label='Выберите предмет'
+								rules={[{ required: true }]}
+							>
+								<Select placeholder='Предмет (Группа)'>
+									{subjects.map(s => (
+										<Select.Option key={s.id} value={s.id}>
+											{s.name} ({groups.find(g => g.id === s.group_id)?.name})
+										</Select.Option>
+									))}
+								</Select>
+							</Form.Item>
+							<Button type='primary' htmlType='submit' block>
+								Закрепить
+							</Button>
+						</Form>
+					</Card>
+				</Col>
+
+				{/* Список текущих связей */}
+				<Col xs={24} lg={12}>
+					<Card title='Текущие доступы'>
+						<List
+							dataSource={relations}
+							renderItem={rel => {
+								const teacher = profiles.find(p => p.id === rel.teacher_id)
+								const subject = subjects.find(s => s.id === rel.subject_id)
+								return (
+									<List.Item
+										actions={[
+											<Button
+												key={rel}
+												type='text'
+												danger
+												icon={<DeleteOutlined />}
+												onClick={() => removeRelation(rel.id)}
+											/>,
+										]}
+									>
+										<List.Item.Meta
+											avatar={<UserOutlined />}
+											title={teacher?.full_name || teacher?.email}
+											description={`${subject?.name} — ${groups.find(g => g.id === subject?.group_id)?.name}`}
+										/>
+									</List.Item>
+								)
+							}}
+						/>
+					</Card>
+				</Col>
+			</Row>
+
+			<Row gutter={[24, 24]}>
+				{/* Секция Групп */}
+				<Col xs={24} lg={8}>
+					<Card
+						title={
+							<Space>
+								<TeamOutlined /> Группы
+							</Space>
+						}
+						variant='borderless'
+					>
+						<Form form={groupForm} layout='vertical' onFinish={onGroupFinish}>
+							<Form.Item
+								name='name'
+								label='Название группы'
+								rules={[{ required: true }]}
+							>
+								<Input placeholder='Напр: ИТ-24' />
+							</Form.Item>
+							<Button type='primary' htmlType='submit' block>
+								Создать группу
+							</Button>
+						</Form>
+						<Divider>Список групп</Divider>
+						<div style={{ maxHeight: 300, overflowY: 'auto' }}>
+							{groups.map((g: Group) => (
+								<div
+									key={g.id}
+									style={{
+										display: 'flex',
+										justifyContent: 'space-between',
+										marginBottom: 8,
+									}}
+								>
+									<Text>{g.name}</Text>
+									<Popconfirm
+										title='Удалить группу и всех её студентов?'
+										onConfirm={() => deleteGroup(g.id)}
+									>
+										<Button
+											type='text'
+											danger
+											icon={<DeleteOutlined />}
+											size='small'
+										/>
+									</Popconfirm>
+								</div>
+							))}
+						</div>
+					</Card>
+				</Col>
 
       <Row gutter={[24, 24]}>
         {/* Секция Групп */}

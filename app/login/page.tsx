@@ -1,12 +1,15 @@
 'use client'
 import { supabase } from '@/lib/supabase'
+import { baseApi } from '@/services/api'
 import { Button, Card, Form, Input, message } from 'antd'
 import { useRouter } from 'next/navigation'
+import { useDispatch } from 'react-redux'
 
 export default function LoginPage() {
 	const router = useRouter()
+	const dispatch = useDispatch()
 
-	const onFinish = async (values: { email: string, password: string }) => {
+	const onFinish = async (values: { email: string; password: string }) => {
 		const { error } = await supabase.auth.signInWithPassword({
 			email: values.email, // Используем email вместо username
 			password: values.password,
@@ -17,6 +20,7 @@ export default function LoginPage() {
 		} else {
 			message.success('Вы вошли!')
 			router.push('/management')
+			dispatch(baseApi.util.resetApiState()) // Это полностью очистит кеш всех запросов
 			router.refresh()
 		}
 	}
@@ -30,7 +34,7 @@ export default function LoginPage() {
 				height: '80vh',
 			}}
 		>
-			<Card title='Вход для администратора' style={{ width: 400 }}>
+			<Card title='Вход' style={{ width: 400 }}>
 				<Form onFinish={onFinish} layout='vertical'>
 					<Form.Item
 						name='email'

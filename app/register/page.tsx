@@ -30,7 +30,7 @@ export default function LoginPage() {
 				height: '80vh',
 			}}
 		>
-			<Card title='Вход для администратора' style={{ width: 400 }}>
+			<Card title='Регистрация' style={{ width: 400 }}>
 				<Form onFinish={onFinish} layout='vertical'>
 					<Form.Item
 						name='email'
