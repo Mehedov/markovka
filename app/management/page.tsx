@@ -59,8 +59,15 @@ export default function ManagementPage() {
 	const { data: groups = [] } = useGetGroupsQuery()
 	const { data: students = [] } = useGetStudentsQuery()
 	const { data: subjects = [] } = useGetSubjectsQuery()
-	const { data: profiles = [] } = useGetProfilesQuery()
 	const { data: relations = [] } = useGetTeacherRelationsQuery()
+
+	// Сделай так:
+	const { data: profiles = [], refetch: refetchProfiles } = useGetProfilesQuery(
+		undefined,
+		{
+			refetchOnMountOrArgChange: true,
+		},
+	)
 
 	// Мутации
 	const [addGroup] = useAddGroupMutation()

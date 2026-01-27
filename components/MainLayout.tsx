@@ -3,12 +3,11 @@
 import { supabase } from '@/lib/supabase'
 import {
 	CalendarOutlined,
-	CrownOutlined,
 	LoginOutlined,
 	LogoutOutlined,
 	SettingOutlined,
 } from '@ant-design/icons'
-import { Button, Layout, Menu, Space, Typography, theme } from 'antd'
+import { Button, Layout, Menu, Space, theme } from 'antd'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
@@ -95,12 +94,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 					<ThemeSwitcher />
 					{isLoggedIn ? (
 						<>
-							<Space style={{ marginRight: 16 }}>
-								<CrownOutlined style={{ color: '#ffec3d' }} />
-								<Typography.Text style={{ color: antdToken.colorText }}>
-									Администратор
-								</Typography.Text>
-							</Space>
 							<Button
 								type='primary'
 								danger
