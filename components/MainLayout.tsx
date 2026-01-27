@@ -120,17 +120,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 				}}
 			>
 				<Space size='large'>
-					<Link
-						href='/'
-						style={{
-							color: antdToken.colorPrimary,
-							fontWeight: 'bold',
-							fontSize: '18px',
-							marginRight: 20,
-						}}
-					>
-						MARKOVKA
-					</Link>
 					<Menu
 						mode='horizontal'
 						selectedKeys={[pathname]}
