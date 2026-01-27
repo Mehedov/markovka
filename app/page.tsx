@@ -18,8 +18,9 @@ import {
 	theme,
 	Typography,
 } from 'antd'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
+import { supabase } from '@/lib/supabase'
 import {
 	useGetAttendanceQuery,
 	useUpdateAttendanceMutation,
@@ -27,6 +28,7 @@ import {
 import { useGetGroupsQuery } from '@/services/group/groupApi'
 import { useGetStudentsQuery } from '@/services/students/studentsApi'
 import { useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
+import { useGetTeacherRelationsQuery } from '@/services/teacher/teacherApi'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
 
@@ -42,13 +44,40 @@ export default function AttendancePage() {
 		null,
 	)
 	const [selectedMonth, setSelectedMonth] = useState(dayjs())
+	const [currentUser, setCurrentUser] = useState<any>(null)
 
 	// Данные из RTK Query (Supabase)
 	const { data: groups = [] } = useGetGroupsQuery()
 	const { data: allStudents = [] } = useGetStudentsQuery()
 	const { data: allSubjects = [] } = useGetSubjectsQuery()
 	const { data: attendanceRecords = [] } = useGetAttendanceQuery()
+	const { data: relations = [] } = useGetTeacherRelationsQuery()
 	const [updateAttendance] = useUpdateAttendanceMutation()
+
+	useEffect(() => {
+		supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user))
+	}, [])
+
+	// Фильтруем предметы
+	const teacherSubjects = useMemo(() => {
+		if (!currentUser) return []
+
+		// Если админ — возвращаем все предметы
+		if (currentUser.app_metadata?.role === 'admin') return allSubjects
+
+		// Если учитель — только те, что закреплены в teacher_subjects
+		const mySubjectIds = relations
+			.filter(r => r.teacher_id === currentUser.id)
+			.map(r => r.subject_id)
+
+		return allSubjects.filter(s => mySubjectIds.includes(s.id))
+	}, [allSubjects, relations, currentUser])
+
+	// Фильтруем группы (только те, где есть доступные предметы)
+	const teacherGroups = useMemo(() => {
+		const groupIds = teacherSubjects.map(s => s.group_id)
+		return groups.filter(g => groupIds.includes(g.id))
+	}, [groups, teacherSubjects])
 
 	// Фильтруем дисциплины по выбранной группе
 	const filteredSubjects = useMemo(
@@ -202,7 +231,10 @@ export default function AttendancePage() {
 								setSelectedGroupId(val)
 								setSelectedSubjectId(null)
 							}}
-							options={groups.map(g => ({ label: g.name, value: g.id }))}
+							options={teacherGroups.map(g => ({
+								label: g.name, // Поменял с fullName на name
+								value: g.id,
+							}))}
 						/>
 					</Col>
 					<Col xs={24} md={6}>
@@ -212,10 +244,12 @@ export default function AttendancePage() {
 							disabled={!selectedGroupId}
 							value={selectedSubjectId}
 							onChange={setSelectedSubjectId}
-							options={filteredSubjects.map(s => ({
-								label: s.name,
-								value: s.id,
-							}))}
+							options={teacherSubjects
+								.filter(s => s.group_id === selectedGroupId) // Фильтруем предметы по выбранной группе
+								.map(s => ({
+									label: s.name,
+									value: s.id,
+								}))}
 						/>
 					</Col>
 					<Col xs={24} md={6}>

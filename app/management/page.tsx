@@ -15,12 +15,20 @@ import {
 	useDeleteSubjectMutation,
 	useGetSubjectsQuery,
 } from '@/services/subjects/subjectsApi'
+import {
+	useAssignSubjectToTeacherMutation,
+	useGetProfilesQuery,
+	useGetTeacherRelationsQuery,
+	useRemoveTeacherRelationMutation,
+} from '@/services/teacher/teacherApi'
 import { Group } from '@/types/attendance'
 import {
 	BookOutlined,
 	DeleteOutlined,
+	LinkOutlined,
 	TeamOutlined,
 	UserAddOutlined,
+	UserOutlined,
 } from '@ant-design/icons'
 import {
 	Button,
@@ -29,6 +37,7 @@ import {
 	Divider,
 	Form,
 	Input,
+	List,
 	message,
 	Popconfirm,
 	Row,
@@ -44,11 +53,14 @@ export default function ManagementPage() {
 	const [groupForm] = Form.useForm()
 	const [studentForm] = Form.useForm()
 	const [subjectForm] = Form.useForm()
+	const [form] = Form.useForm()
 
 	// Данные
 	const { data: groups = [] } = useGetGroupsQuery()
 	const { data: students = [] } = useGetStudentsQuery()
 	const { data: subjects = [] } = useGetSubjectsQuery()
+	const { data: profiles = [] } = useGetProfilesQuery()
+	const { data: relations = [] } = useGetTeacherRelationsQuery()
 
 	// Мутации
 	const [addGroup] = useAddGroupMutation()
@@ -57,6 +69,18 @@ export default function ManagementPage() {
 	const [deleteStudent] = useDeleteStudentMutation()
 	const [addSubject] = useAddSubjectMutation()
 	const [deleteSubject] = useDeleteSubjectMutation()
+	const [assignSubject] = useAssignSubjectToTeacherMutation()
+	const [removeRelation] = useRemoveTeacherRelationMutation()
+
+	const onAssignFinish = async (values: any) => {
+		try {
+			await assignSubject(values).unwrap()
+			message.success('Предмет закреплен за учителем')
+			form.resetFields(['subject_id'])
+		} catch (e) {
+			message.error('Ошибка: возможно связь уже существует')
+		}
+	}
 
 	// Обработчики создания
 	const onGroupFinish = async (values: { name: string }) => {
@@ -123,6 +147,82 @@ export default function ManagementPage() {
 	return (
 		<div style={{ padding: '24px' }}>
 			<Title level={2}>Панель управления</Title>
+
+			<Row gutter={[24, 24]}>
+				{/* Форма назначения */}
+				<Col xs={24} lg={12}>
+					<Card
+						title={
+							<Space>
+								<LinkOutlined /> Назначить предмет учителю
+							</Space>
+						}
+					>
+						<Form form={form} layout='vertical' onFinish={onAssignFinish}>
+							<Form.Item
+								name='teacher_id'
+								label='Выберите учителя'
+								rules={[{ required: true }]}
+							>
+								<Select placeholder='Email учителя'>
+									{profiles.map(p => (
+										<Select.Option key={p.id} value={p.id}>
+											{p.email}
+										</Select.Option>
+									))}
+								</Select>
+							</Form.Item>
+							<Form.Item
+								name='subject_id'
+								label='Выберите предмет'
+								rules={[{ required: true }]}
+							>
+								<Select placeholder='Предмет (Группа)'>
+									{subjects.map(s => (
+										<Select.Option key={s.id} value={s.id}>
+											{s.name} ({groups.find(g => g.id === s.group_id)?.name})
+										</Select.Option>
+									))}
+								</Select>
+							</Form.Item>
+							<Button type='primary' htmlType='submit' block>
+								Закрепить
+							</Button>
+						</Form>
+					</Card>
+				</Col>
+
+				{/* Список текущих связей */}
+				<Col xs={24} lg={12}>
+					<Card title='Текущие доступы'>
+						<List
+							dataSource={relations}
+							renderItem={rel => {
+								const teacher = profiles.find(p => p.id === rel.teacher_id)
+								const subject = subjects.find(s => s.id === rel.subject_id)
+								return (
+									<List.Item
+										actions={[
+											<Button
+												type='text'
+												danger
+												icon={<DeleteOutlined />}
+												onClick={() => removeRelation(rel.id)}
+											/>,
+										]}
+									>
+										<List.Item.Meta
+											avatar={<UserOutlined />}
+											title={teacher?.email}
+											description={`${subject?.name} — ${groups.find(g => g.id === subject?.group_id)?.name}`}
+										/>
+									</List.Item>
+								)
+							}}
+						/>
+					</Card>
+				</Col>
+			</Row>
 
 			<Row gutter={[24, 24]}>
 				{/* Секция Групп */}
