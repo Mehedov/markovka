@@ -42,7 +42,7 @@ import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
 
 dayjs.locale('ru')
-const { Title, Text } = Typography
+const { Text } = Typography
 
 export default function AttendancePage() {
 	const { token } = theme.useToken()
@@ -55,7 +55,7 @@ export default function AttendancePage() {
 	const [selectedMonth, setSelectedMonth] = useState(dayjs())
 	const [currentUser, setCurrentUser] = useState<any>(null)
 
-	// Флаг для мгновенного закрытия модалки в текущей сессии
+	// Флаг для закрытия модалки после успешного ввода имени
 	const [hasJustFinishedOnboarding, setHasJustFinishedOnboarding] =
 		useState(false)
 
@@ -65,29 +65,57 @@ export default function AttendancePage() {
 	const { data: allSubjects = [] } = useGetSubjectsQuery()
 	const { data: attendanceRecords = [] } = useGetAttendanceQuery()
 	const { data: relations = [] } = useGetTeacherRelationsQuery()
-	const { data: profiles = [] } = useGetProfilesQuery()
+
+	// Добавляем refetch, чтобы принудительно обновить список профилей при логине
+	const { data: profiles = [], refetch: refetchProfiles } =
+		useGetProfilesQuery()
 
 	const [updateAttendance] = useUpdateAttendanceMutation()
 	const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
 
-	// Получаем текущего пользователя при монтировании
+	// СЛУШАЕМ АВТОРИЗАЦИЮ В РЕАЛЬНОМ ВРЕМЕНИ
 	useEffect(() => {
-		supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user))
-	}, [])
+		// 1. Проверяем текущего юзера сразу
+		supabase.auth.getUser().then(({ data }) => {
+			if (data.user) {
+				setCurrentUser(data.user)
+				refetchProfiles() // Обновляем профили, если юзер найден
+			}
+		})
 
-	// ВЫЧИСЛЯЕМАЯ ЛОГИКА ONBOARDING (вместо useEffect)
+		// 2. Подписываемся на изменения (важно для первой регистрации/логина)
+		const {
+			data: { subscription },
+		} = supabase.auth.onAuthStateChange((event, session) => {
+			if (session?.user) {
+				setCurrentUser(session.user)
+				refetchProfiles() // Как только появились куки/сессия — тянем профиль
+			} else {
+				setCurrentUser(null)
+			}
+		})
+
+		return () => subscription.unsubscribe()
+	}, [refetchProfiles])
+
+	// ВЫЧИСЛЯЕМ, НУЖЕН ЛИ ONBOARDING
 	const myProfile = useMemo(
 		() => profiles.find(p => p.id === currentUser?.id),
 		[profiles, currentUser],
 	)
 
 	const shouldShowOnboarding = useMemo(() => {
+		// Не показываем, если: еще нет юзера, уже ввели имя в этой сессии, или это админ
 		if (!currentUser || hasJustFinishedOnboarding) return false
 		if (currentUser.app_metadata?.role === 'admin') return false
-		if (profiles.length === 0) return false // Ждем загрузки данных
 
-		return !myProfile || !myProfile.full_name
-	}, [currentUser, myProfile, profiles.length, hasJustFinishedOnboarding])
+		// Показываем, если профили загружены, но имени нет
+		if (profiles.length > 0) {
+			return !myProfile || !myProfile.full_name
+		}
+
+		return false
+	}, [currentUser, myProfile, profiles, hasJustFinishedOnboarding])
 
 	const handleFinishOnboarding = async (values: { full_name: string }) => {
 		try {
@@ -97,13 +125,13 @@ export default function AttendancePage() {
 			}).unwrap()
 
 			message.success('Приятно познакомиться, ' + values.full_name)
-			setHasJustFinishedOnboarding(true) // Это мгновенно скроет модалку
+			setHasJustFinishedOnboarding(true) // Мгновенно скрываем модалку
 		} catch (e) {
 			message.error('Не удалось сохранить имя')
 		}
 	}
 
-	// Фильтрация предметов и групп
+	// ФИЛЬТРЫ И ЛОГИКА ТАБЛИЦЫ (БЕЗ ИЗМЕНЕНИЙ)
 	const teacherSubjects = useMemo(() => {
 		if (!currentUser) return []
 		if (currentUser.app_metadata?.role === 'admin') return allSubjects
@@ -325,7 +353,10 @@ export default function AttendancePage() {
 				closable={false}
 				maskClosable={false}
 			>
-				<p>Пожалуйста, представьтесь, чтобы продолжить работу.</p>
+				<p>
+					Пожалуйста, представьтесь, чтобы продолжить работу. Это имя будет
+					отображаться в списках и отчетах.
+				</p>
 				<Form onFinish={handleFinishOnboarding} layout='vertical'>
 					<Form.Item
 						name='full_name'
