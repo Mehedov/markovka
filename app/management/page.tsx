@@ -257,59 +257,6 @@ export default function ManagementPage() {
 							</Button>
 						</Form>
 						<Divider>Список групп</Divider>
-						<div style={{ maxHeight: 300, overflowY: 'auto' }}>
-							{groups.map((g: Group) => (
-								<div
-									key={g.id}
-									style={{
-										display: 'flex',
-										justifyContent: 'space-between',
-										marginBottom: 8,
-									}}
-								>
-									<Text>{g.name}</Text>
-									<Popconfirm
-										title='Удалить группу и всех её студентов?'
-										onConfirm={() => deleteGroup(g.id)}
-									>
-										<Button
-											type='text'
-											danger
-											icon={<DeleteOutlined />}
-											size='small'
-										/>
-									</Popconfirm>
-								</div>
-							))}
-						</div>
-					</Card>
-				</Col>
-			</Row>
-
-			<Row gutter={[24, 24]}>
-				{/* Секция Групп */}
-				<Col xs={24} lg={8}>
-					<Card
-						title={
-							<Space>
-								<TeamOutlined /> Группы
-							</Space>
-						}
-						variant='borderless'
-					>
-						<Form form={groupForm} layout='vertical' onFinish={onGroupFinish}>
-							<Form.Item
-								name='name'
-								label='Название группы'
-								rules={[{ required: true }]}
-							>
-								<Input placeholder='Напр: ИТ-24' />
-							</Form.Item>
-							<Button type='primary' htmlType='submit' block>
-								Создать группу
-							</Button>
-						</Form>
-						<Divider>Список групп</Divider>
 						<div style={{ maxHeight: 200, overflowY: 'scroll' }}>
 							{groups.map((g: Group) => (
 								<div
