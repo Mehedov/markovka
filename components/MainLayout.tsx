@@ -1,38 +1,53 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
+import { useGetProfilesQuery } from '@/services/teacher/teacherApi'
 import {
 	CalendarOutlined,
 	LoginOutlined,
 	LogoutOutlined,
 	SettingOutlined,
+	UserOutlined,
 } from '@ant-design/icons'
-import { Button, Layout, Menu, Space, theme } from 'antd'
+import {
+	Avatar,
+	Button,
+	Dropdown,
+	Layout,
+	Menu,
+	Space,
+	theme,
+	Typography,
+} from 'antd'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 
 const { Header, Content } = Layout
+const { Text } = Typography
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const router = useRouter()
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [isLoggedIn, setIsLoggedIn] = useState(false)
+	const [currentUser, setCurrentUser] = useState<any>(null)
+
+	// Подключаем профили из базы
+	const { data: profiles = [] } = useGetProfilesQuery()
 
 	useEffect(() => {
-		// 1. Проверяем текущую сессию
+		// Проверяем сессию при загрузке
 		supabase.auth.getSession().then(({ data: { session } }) => {
-			setIsLoggedIn(!!session)
+			setCurrentUser(session?.user ?? null)
 		})
 
-		// 2. Подписываемся на изменения (логин/логаут)
+		// Слушаем изменения авторизации
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event, session) => {
-			setIsLoggedIn(!!session)
+			setCurrentUser(session?.user ?? null)
 		})
 
 		return () => subscription.unsubscribe()
@@ -40,19 +55,46 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
 	const handleLogout = async () => {
 		await supabase.auth.signOut()
-		router.push('/')
+		router.push('/login')
 	}
 
-	// Формируем пункты меню динамически
+	// Находим данные профиля текущего пользователя
+	const myProfile = profiles.find(p => p.id === currentUser?.id)
+	const isAdmin = currentUser?.app_metadata?.role === 'admin'
+
+	// Выпадающее меню аватара
+	const userMenuItems = [
+		{
+			key: 'profile',
+			icon: <UserOutlined />,
+			label: <Link href='/profile'>Мой профиль</Link>,
+		},
+		{
+			type: 'divider' as const,
+		},
+		{
+			key: 'logout',
+			icon: <LogoutOutlined />,
+			label: 'Выйти',
+			danger: true,
+			onClick: handleLogout,
+		},
+	]
+
+	// Основное навигационное меню
 	const menuItems = [
-		// Добавляем ссылку на Управление только если пользователь авторизован
-		...(isLoggedIn
+		...(currentUser
 			? [
-					{
-						key: '/management',
-						icon: <SettingOutlined />,
-						label: <Link href='/management'>Управление</Link>,
-					},
+					// Показываем управление только АДМИНУ
+					...(isAdmin
+						? [
+								{
+									key: '/management',
+									icon: <SettingOutlined />,
+									label: <Link href='/management'>Управление</Link>,
+								},
+							]
+						: []),
 					{
 						key: '/',
 						icon: <CalendarOutlined />,
@@ -74,9 +116,21 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 					zIndex: 10,
 					backgroundColor: antdToken.colorBgLayout,
 					color: antdToken.colorText,
+					borderBottom: `1px solid ${antdToken.colorBorderSecondary}`,
 				}}
 			>
 				<Space size='large'>
+					<Link
+						href='/'
+						style={{
+							color: antdToken.colorPrimary,
+							fontWeight: 'bold',
+							fontSize: '18px',
+							marginRight: 20,
+						}}
+					>
+						MARKOVKA
+					</Link>
 					<Menu
 						mode='horizontal'
 						selectedKeys={[pathname]}
@@ -92,20 +146,45 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
 				<Space size='middle'>
 					<ThemeSwitcher />
-					{isLoggedIn ? (
-						<>
-							<Button
-								type='primary'
-								danger
-								ghost
-								icon={<LogoutOutlined />}
-								onClick={handleLogout}
+
+					{currentUser ? (
+						<Dropdown
+							menu={{ items: userMenuItems }}
+							placement='bottomRight'
+							arrow
+						>
+							<Space
+								style={{
+									cursor: 'pointer',
+									padding: '4px 8px',
+									borderRadius: 8,
+								}}
 							>
-								Выйти
-							</Button>
-						</>
+								<div
+									style={{
+										textAlign: 'right',
+										lineHeight: 1,
+										display: 'flex',
+										flexDirection: 'column',
+									}}
+								>
+									<Text strong style={{ fontSize: '14px' }}>
+										{myProfile?.full_name || 'Загрузка...'}
+									</Text>
+									<Text type='secondary' style={{ fontSize: '11px' }}>
+										{isAdmin ? 'Администратор' : 'Преподаватель'}
+									</Text>
+								</div>
+								<Avatar
+									size='large'
+									src={myProfile?.avatar_url}
+									icon={<UserOutlined />}
+									style={{ backgroundColor: antdToken.colorPrimary }}
+								/>
+							</Space>
+						</Dropdown>
 					) : (
-						<div>
+						<Space>
 							<Button
 								type='primary'
 								icon={<LoginOutlined />}
@@ -113,14 +192,10 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 							>
 								Войти
 							</Button>
-							<Button
-								type='primary'
-								icon={<LoginOutlined />}
-								onClick={() => router.push('/register')}
-							>
-								Зарегистрироваться
+							<Button onClick={() => router.push('/register')}>
+								Регистрация
 							</Button>
-						</div>
+						</Space>
 					)}
 				</Space>
 			</Header>
