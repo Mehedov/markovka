@@ -51,6 +51,19 @@ const teacherApi = baseApi.injectEndpoints({
 			},
 			invalidatesTags: ['TeacherRelations'],
 		}),
+		updateProfile: builder.mutation<any, { id: string; full_name: string }>({
+			queryFn: async ({ id, full_name }) => {
+				const { data, error } = await supabase
+					.from('profiles')
+					.update({ full_name })
+					.eq('id', id)
+					.select()
+
+				if (error) return { error }
+				return { data: data[0] }
+			},
+			invalidatesTags: ['Profiles'],
+		}),
 	}),
 	overrideExisting: false,
 })
@@ -61,4 +74,5 @@ export const {
 	useGetTeacherRelationsQuery, // Новый
 	useAssignSubjectToTeacherMutation, // Тот самый
 	useRemoveTeacherRelationMutation,
+	useUpdateProfileMutation,
 } = teacherApi

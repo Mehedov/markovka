@@ -7,9 +7,14 @@ import {
 } from '@ant-design/icons'
 import {
 	Alert,
+	Button,
 	Card,
 	Col,
 	DatePicker,
+	Form,
+	Input,
+	message,
+	Modal,
 	Row,
 	Select,
 	Space,
@@ -28,7 +33,11 @@ import {
 import { useGetGroupsQuery } from '@/services/group/groupApi'
 import { useGetStudentsQuery } from '@/services/students/studentsApi'
 import { useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
-import { useGetTeacherRelationsQuery } from '@/services/teacher/teacherApi'
+import {
+	useGetProfilesQuery,
+	useGetTeacherRelationsQuery,
+	useUpdateProfileMutation,
+} from '@/services/teacher/teacherApi'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
 
@@ -46,46 +55,69 @@ export default function AttendancePage() {
 	const [selectedMonth, setSelectedMonth] = useState(dayjs())
 	const [currentUser, setCurrentUser] = useState<any>(null)
 
-	// Данные из RTK Query (Supabase)
+	// Флаг для мгновенного закрытия модалки в текущей сессии
+	const [hasJustFinishedOnboarding, setHasJustFinishedOnboarding] =
+		useState(false)
+
+	// Данные из RTK Query
 	const { data: groups = [] } = useGetGroupsQuery()
 	const { data: allStudents = [] } = useGetStudentsQuery()
 	const { data: allSubjects = [] } = useGetSubjectsQuery()
 	const { data: attendanceRecords = [] } = useGetAttendanceQuery()
 	const { data: relations = [] } = useGetTeacherRelationsQuery()
-	const [updateAttendance] = useUpdateAttendanceMutation()
+	const { data: profiles = [] } = useGetProfilesQuery()
 
+	const [updateAttendance] = useUpdateAttendanceMutation()
+	const [updateProfile, { isLoading: isUpdating }] = useUpdateProfileMutation()
+
+	// Получаем текущего пользователя при монтировании
 	useEffect(() => {
 		supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user))
 	}, [])
 
-	// Фильтруем предметы
+	// ВЫЧИСЛЯЕМАЯ ЛОГИКА ONBOARDING (вместо useEffect)
+	const myProfile = useMemo(
+		() => profiles.find(p => p.id === currentUser?.id),
+		[profiles, currentUser],
+	)
+
+	const shouldShowOnboarding = useMemo(() => {
+		if (!currentUser || hasJustFinishedOnboarding) return false
+		if (currentUser.app_metadata?.role === 'admin') return false
+		if (profiles.length === 0) return false // Ждем загрузки данных
+
+		return !myProfile || !myProfile.full_name
+	}, [currentUser, myProfile, profiles.length, hasJustFinishedOnboarding])
+
+	const handleFinishOnboarding = async (values: { full_name: string }) => {
+		try {
+			await updateProfile({
+				id: currentUser.id,
+				full_name: values.full_name,
+			}).unwrap()
+
+			message.success('Приятно познакомиться, ' + values.full_name)
+			setHasJustFinishedOnboarding(true) // Это мгновенно скроет модалку
+		} catch (e) {
+			message.error('Не удалось сохранить имя')
+		}
+	}
+
+	// Фильтрация предметов и групп
 	const teacherSubjects = useMemo(() => {
 		if (!currentUser) return []
-
-		// Если админ — возвращаем все предметы
 		if (currentUser.app_metadata?.role === 'admin') return allSubjects
-
-		// Если учитель — только те, что закреплены в teacher_subjects
 		const mySubjectIds = relations
 			.filter(r => r.teacher_id === currentUser.id)
 			.map(r => r.subject_id)
-
 		return allSubjects.filter(s => mySubjectIds.includes(s.id))
 	}, [allSubjects, relations, currentUser])
 
-	// Фильтруем группы (только те, где есть доступные предметы)
 	const teacherGroups = useMemo(() => {
 		const groupIds = teacherSubjects.map(s => s.group_id)
 		return groups.filter(g => groupIds.includes(g.id))
 	}, [groups, teacherSubjects])
 
-	// Фильтруем дисциплины по выбранной группе
-	const filteredSubjects = useMemo(
-		() => allSubjects.filter(sub => sub.group_id === selectedGroupId),
-		[allSubjects, selectedGroupId],
-	)
-
-	// Фильтруем студентов по выбранной группе
 	const studentsInGroup = useMemo(
 		() => allStudents.filter(s => s.group_id === selectedGroupId),
 		[allStudents, selectedGroupId],
@@ -98,21 +130,18 @@ export default function AttendancePage() {
 		)
 	}, [selectedMonth])
 
-	// Расчет статистики для выбранной группы и дисциплины
 	const stats = useMemo(() => {
 		if (!selectedSubjectId) return { presents: 0, total: 0, percent: 0 }
-
 		const relevant = attendanceRecords.filter(
 			r =>
 				r.subject_id === selectedSubjectId &&
 				studentsInGroup.some(s => s.id === r.student_id) &&
 				dayjs(r.date).isSame(selectedMonth, 'month'),
 		)
-
 		const presents = relevant.filter(r => r.status === 'present').length
-		const absents = relevant.filter(r => r.status === 'absent').length
-		const total = presents + absents
-
+		const total = relevant.filter(
+			r => r.status === 'present' || r.status === 'absent',
+		).length
 		return {
 			presents,
 			total,
@@ -122,21 +151,18 @@ export default function AttendancePage() {
 
 	const handleToggle = async (studentId: string, dateStr: string) => {
 		if (!selectedSubjectId) return
-
 		const currentRecord = attendanceRecords.find(
 			r =>
 				r.student_id === studentId &&
 				r.subject_id === selectedSubjectId &&
 				r.date === dateStr,
 		)
-
 		const currentStatus = currentRecord?.status || 'none'
 		const nextStatusMap: Record<string, string> = {
 			none: 'present',
 			present: 'absent',
 			absent: 'none',
 		}
-
 		await updateAttendance({
 			student_id: studentId,
 			subject_id: selectedSubjectId,
@@ -168,16 +194,12 @@ export default function AttendancePage() {
 				align: 'center' as const,
 				width: 50,
 				onCell: () => {
-					// Сравниваем строки формата 'YYYY-MM-DD'
-					const isToday = day.format('YYYY-MM-DD') === today
-
+					const isToday = dateStr === today
 					return {
 						style: isToday
 							? {
-									// Используем токены темы напрямую
-									backgroundColor: token.colorPrimaryBg, // Светлый фон (предустановлен в AntD)
-									borderInline: `1px solid ${token.colorPrimary}`, // Рамка вашего цвета
-									transition: 'all 0.3s', // Чтобы подсветка появлялась плавно
+									backgroundColor: token.colorPrimaryBg,
+									borderInline: `1px solid ${token.colorPrimary}`,
 								}
 							: {},
 					}
@@ -220,10 +242,10 @@ export default function AttendancePage() {
 	]
 
 	return (
-		<Space orientation='vertical' size='large' style={{ width: '100%' }}>
+		<Space direction='vertical' size='large' style={{ width: '100%' }}>
 			<Card>
 				<Row gutter={[16, 16]}>
-					<Col xs={24} md={6}>
+					<Col xs={24} md={8}>
 						<Select
 							placeholder='Выберите группу'
 							style={{ width: '100%' }}
@@ -231,13 +253,10 @@ export default function AttendancePage() {
 								setSelectedGroupId(val)
 								setSelectedSubjectId(null)
 							}}
-							options={teacherGroups.map(g => ({
-								label: g.name, // Поменял с fullName на name
-								value: g.id,
-							}))}
+							options={teacherGroups.map(g => ({ label: g.name, value: g.id }))}
 						/>
 					</Col>
-					<Col xs={24} md={6}>
+					<Col xs={24} md={8}>
 						<Select
 							placeholder='Выберите дисциплину'
 							style={{ width: '100%' }}
@@ -245,14 +264,11 @@ export default function AttendancePage() {
 							value={selectedSubjectId}
 							onChange={setSelectedSubjectId}
 							options={teacherSubjects
-								.filter(s => s.group_id === selectedGroupId) // Фильтруем предметы по выбранной группе
-								.map(s => ({
-									label: s.name,
-									value: s.id,
-								}))}
+								.filter(s => s.group_id === selectedGroupId)
+								.map(s => ({ label: s.name, value: s.id }))}
 						/>
 					</Col>
-					<Col xs={24} md={6}>
+					<Col xs={24} md={8}>
 						<DatePicker
 							picker='month'
 							value={selectedMonth}
@@ -266,7 +282,7 @@ export default function AttendancePage() {
 			{selectedGroupId && selectedSubjectId ? (
 				<>
 					<Row gutter={16}>
-						<Col span={8}>
+						<Col span={12} md={8}>
 							<Card>
 								<Statistic
 									title='Явка (за месяц)'
@@ -275,16 +291,13 @@ export default function AttendancePage() {
 								/>
 							</Card>
 						</Col>
-						<Col span={8}>
+						<Col span={12} md={8}>
 							<Card>
-								<div>Процент посещаемости</div>
-								<div
-									style={{
-										fontSize: '20px',
-									}}
-								>
-									{stats.presents}%
-								</div>
+								<Statistic
+									title='Процент посещаемости'
+									value={stats.percent}
+									suffix='%'
+								/>
 							</Card>
 						</Col>
 					</Row>
@@ -299,11 +312,41 @@ export default function AttendancePage() {
 				</>
 			) : (
 				<Alert
-					title='Выберите группу и дисциплину для начала работы'
+					message='Выберите группу и дисциплину для начала работы'
 					type='info'
 					showIcon
 				/>
 			)}
+
+			<Modal
+				title='Добро пожаловать в систему!'
+				open={shouldShowOnboarding}
+				footer={null}
+				closable={false}
+				maskClosable={false}
+			>
+				<p>Пожалуйста, представьтесь, чтобы продолжить работу.</p>
+				<Form onFinish={handleFinishOnboarding} layout='vertical'>
+					<Form.Item
+						name='full_name'
+						label='Ваше полное имя (ФИО)'
+						rules={[{ required: true, message: 'Это поле обязательно' }]}
+					>
+						<Input placeholder='Напр: Иванов Иван Иванович' size='large' />
+					</Form.Item>
+					<Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+						<Button
+							type='primary'
+							htmlType='submit'
+							size='large'
+							loading={isUpdating}
+							block
+						>
+							Сохранить и войти
+						</Button>
+					</Form.Item>
+				</Form>
+			</Modal>
 		</Space>
 	)
 }

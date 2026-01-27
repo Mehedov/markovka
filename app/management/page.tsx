@@ -211,6 +211,7 @@ export default function ManagementPage() {
 									<List.Item
 										actions={[
 											<Button
+												key={rel}
 												type='text'
 												danger
 												icon={<DeleteOutlined />}
@@ -220,7 +221,7 @@ export default function ManagementPage() {
 									>
 										<List.Item.Meta
 											avatar={<UserOutlined />}
-											title={teacher?.email}
+											title={teacher?.full_name || teacher?.email}
 											description={`${subject?.name} — ${groups.find(g => g.id === subject?.group_id)?.name}`}
 										/>
 									</List.Item>
