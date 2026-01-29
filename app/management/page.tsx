@@ -205,6 +205,7 @@ export default function ManagementPage() {
 					<Card title='Текущие доступы'>
 						<List
 							dataSource={relations}
+							style={{maxHeight: '200px', overflowY: 'scroll'}}
 							renderItem={rel => {
 								const teacher = profiles.find(p => p.id === rel.teacher_id)
 								const subject = subjects.find(s => s.id === rel.subject_id)
@@ -231,10 +232,7 @@ export default function ManagementPage() {
 						/>
 					</Card>
 				</Col>
-			</Row>
-
-			<Row gutter={[24, 24]}>
-				{/* Секция Групп */}
+					{/* Секция Групп */}
 				<Col xs={24} lg={8}>
 					<Card
 						title={
@@ -242,7 +240,6 @@ export default function ManagementPage() {
 								<TeamOutlined /> Группы
 							</Space>
 						}
-						variant='borderless'
 					>
 						<Form form={groupForm} layout='vertical' onFinish={onGroupFinish}>
 							<Form.Item
@@ -367,8 +364,6 @@ export default function ManagementPage() {
 					</Card>
 				</Col>
 			</Row>
-
-			{/* <Divider orientation='left'>Общий реестр</Divider> */}
 
 			<Row gutter={[24, 24]}>
 				<Col xs={24} xl={12}>

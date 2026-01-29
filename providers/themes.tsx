@@ -1,9 +1,11 @@
 import { theme } from "antd";
 
+const colorPrimary = "#1dbaee";
+
 export const darkTheme = {
   algorithm: theme.darkAlgorithm,
   token: {
-    colorPrimary: "#1dbaee",
+    colorPrimary,
     colorInfo: "#13c2c2",
     borderRadius: 12,
     colorBgLayout: "#141414",
@@ -31,7 +33,7 @@ export const lightTheme = {
   algorithm: theme.defaultAlgorithm,
 
   token: {
-    colorPrimary: "#1dbaee",
+    colorPrimary,
     colorText: "#000000",
     colorTextHeading: "#000000",
     colorTextDescription: "#595959",
