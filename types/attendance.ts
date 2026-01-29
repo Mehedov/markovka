@@ -2,7 +2,7 @@ export type AttendanceStatus = 'present' | 'absent' | 'none'
 
 export interface Student {
 	id: string
-	fullName: string
+	full_name: string
 	group_id: string
 }
 
