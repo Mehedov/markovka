@@ -8,6 +8,7 @@ import {
   useGetProfilesQuery,
   useGetTeacherRelationsQuery,
 } from "@/services/teacher/teacherApi";
+import { formatName } from "@/utils/formatName";
 import {
   BookOutlined,
   FileExcelOutlined,
@@ -25,12 +26,11 @@ import {
   DatePicker,
   Divider,
   Empty,
-  List,
-  Progress,
   Row,
   Space,
   Statistic,
   Typography,
+  Flex,
 } from "antd";
 import dayjs from "dayjs";
 import "dayjs/locale/ru";
@@ -230,30 +230,23 @@ export default function ProfilePage() {
             }
           >
             {analytics && analytics.subjectsStats.length > 0 ? (
-              <List
-                dataSource={analytics.subjectsStats}
-                renderItem={(item) => (
-                  <List.Item>
-                    <div style={{ width: "100%" }}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          marginBottom: 8,
-                        }}
-                      >
+              <Row gutter={[16, 16]}>
+                {analytics.subjectsStats.map((item) => (
+                  <Col xs={24} sm={12} key={item.id}>
+                    <Card size="small">
+                      <Flex justify="space-between" style={{width: "100%"}}>
                         <Space>
                           <BookOutlined style={{ color: "#1890ff" }} />
                           <Text strong>{item.name}</Text>
-                          <Text strong>{item.percent}%</Text>
-                          
                         </Space>
-                      
-                      </div>
-                    </div>
-                  </List.Item>
-                )}
-              />
+                        <Space>
+                          <Text strong>{item.percent}%</Text>
+                        </Space>
+                      </Flex>
+                    </Card>
+                  </Col>
+                ))}
+              </Row>
             ) : (
               <Empty description="Нет данных за этот период" />
             )}
@@ -273,7 +266,10 @@ export default function ProfilePage() {
             }
           >
             {analytics?.topAbsentees.length ? (
-              <Row gutter={[16, 16]}>
+              <Row
+                gutter={[16, 16]}
+                style={{ maxHeight: "500px", overflowY: "scroll" }}
+              >
                 {analytics.topAbsentees.map((student) => (
                   <Col xs={24} sm={12} md={8} lg={6} key={student.id}>
                     <Card
@@ -285,10 +281,8 @@ export default function ProfilePage() {
                     >
                       <Space size="middle">
                         <Avatar icon={<UserOutlined />} />
-                        {/* <Badge count={student.count} color={token.colorError}>
-                        </Badge> */}
                         <div>
-                          <Text strong>{student.name}</Text>
+                          <Text strong>{formatName(student.name)}</Text>
                           <br />
                           <Text
                             type="danger"
