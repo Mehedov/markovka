@@ -245,12 +245,10 @@ export default function ProfilePage() {
                         <Space>
                           <BookOutlined style={{ color: "#1890ff" }} />
                           <Text strong>{item.name}</Text>
+                          <Text strong>{item.percent}%</Text>
+                          
                         </Space>
-                        <Progress
-                          percent={item.percent}
-                          strokeColor={token.colorPrimary}
-                          status="normal"
-                        />
+                      
                       </div>
                     </div>
                   </List.Item>
