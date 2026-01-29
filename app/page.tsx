@@ -38,6 +38,7 @@ import {
 	useGetTeacherRelationsQuery,
 	useUpdateProfileMutation,
 } from '@/services/teacher/teacherApi'
+import { formatName } from '@/utils/formatName'
 import dayjs from 'dayjs'
 import 'dayjs/locale/ru'
 
@@ -206,8 +207,8 @@ export default function AttendancePage() {
 			title: 'Студент',
 			dataIndex: 'full_name',
 			fixed: 'left' as const,
-			width: 200,
-			render: (text: string) => <Text strong>{text}</Text>,
+			width: 150,
+			render: (text: string) => <Text strong>{formatName(text)}</Text>,
 		},
 		...daysInMonth.map(day => {
 			const dateStr = day.format('YYYY-MM-DD')
@@ -246,16 +247,20 @@ export default function AttendancePage() {
 							style={{ cursor: 'pointer' }}
 						>
 							{status === 'present' && (
-								<CheckCircleFilled style={{ color: token.colorSuccess }} />
+								<CheckCircleFilled
+									style={{ color: token.colorSuccess, fontSize: '20px' }}
+								/>
 							)}
 							{status === 'absent' && (
-								<CloseCircleFilled style={{ color: token.colorError }} />
+								<CloseCircleFilled
+									style={{ color: token.colorError, fontSize: '20px' }}
+								/>
 							)}
 							{status === 'none' && (
 								<div
 									style={{
-										width: 14,
-										height: 14,
+										width: 20,
+										height: 20,
 										border: '1px dashed #ccc',
 										borderRadius: '50%',
 										margin: '0 auto',
@@ -272,11 +277,17 @@ export default function AttendancePage() {
 	return (
 		<Space direction='vertical' size='large' style={{ width: '100%' }}>
 			<Card>
-				<Row gutter={[16, 16]}>
-					<Col xs={24} md={8}>
+				<Row
+					style={{
+						display: 'flex',
+						alignItems: 'center',
+						gap: '20px',
+					}}
+				>
+					<Col>
 						<Select
 							placeholder='Выберите группу'
-							style={{ width: '100%' }}
+							style={{ width: '300px', padding: '10px', fontSize: '18px' }}
 							onChange={val => {
 								setSelectedGroupId(val)
 								setSelectedSubjectId(null)
@@ -284,10 +295,10 @@ export default function AttendancePage() {
 							options={teacherGroups.map(g => ({ label: g.name, value: g.id }))}
 						/>
 					</Col>
-					<Col xs={24} md={8}>
+					<Col>
 						<Select
 							placeholder='Выберите дисциплину'
-							style={{ width: '100%' }}
+							style={{ width: '300px', padding: '10px', fontSize: '18px' }}
 							disabled={!selectedGroupId}
 							value={selectedSubjectId}
 							onChange={setSelectedSubjectId}
@@ -296,12 +307,13 @@ export default function AttendancePage() {
 								.map(s => ({ label: s.name, value: s.id }))}
 						/>
 					</Col>
-					<Col xs={24} md={8}>
+					<Col>
 						<DatePicker
+							size='large'
 							picker='month'
 							value={selectedMonth}
 							onChange={d => d && setSelectedMonth(d)}
-							style={{ width: '100%' }}
+							style={{ width: '280px', padding: '12px', fontSize: '18px' }}
 						/>
 					</Col>
 				</Row>
@@ -310,7 +322,7 @@ export default function AttendancePage() {
 			{selectedGroupId && selectedSubjectId ? (
 				<>
 					<Row gutter={16}>
-						<Col span={12} md={8}>
+						<Col span={12} md={3}>
 							<Card>
 								<Statistic
 									title='Явка (за месяц)'
@@ -319,7 +331,7 @@ export default function AttendancePage() {
 								/>
 							</Card>
 						</Col>
-						<Col span={12} md={8}>
+						<Col span={12} md={5}>
 							<Card>
 								<Statistic
 									title='Процент посещаемости'
@@ -340,7 +352,10 @@ export default function AttendancePage() {
 				</>
 			) : (
 				<Alert
-					message='Выберите группу и дисциплину для начала работы'
+					style={{
+						fontSize: '18px',
+					}}
+					title='Выберите группу и дисциплину для начала работы'
 					type='info'
 					showIcon
 				/>
