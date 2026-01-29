@@ -230,11 +230,11 @@ export default function ProfilePage() {
             }
           >
             {analytics && analytics.subjectsStats.length > 0 ? (
-              <Row gutter={[16, 16]}>
+              <Row gutter={[16, 16]} style={{maxHeight: '304px', overflowY: 'scroll'}}>
                 {analytics.subjectsStats.map((item) => (
                   <Col xs={24} sm={12} key={item.id}>
                     <Card size="small">
-                      <Flex justify="space-between" style={{width: "100%"}}>
+                      <Flex justify="space-between" style={{ width: "100%" }}>
                         <Space>
                           <BookOutlined style={{ color: "#1890ff" }} />
                           <Text strong>{item.name}</Text>
@@ -268,7 +268,7 @@ export default function ProfilePage() {
             {analytics?.topAbsentees.length ? (
               <Row
                 gutter={[16, 16]}
-                style={{ maxHeight: "500px", overflowY: "scroll" }}
+                style={{ maxHeight: "330px", overflowY: "scroll" }}
               >
                 {analytics.topAbsentees.map((student) => (
                   <Col xs={24} sm={12} md={8} lg={6} key={student.id}>
