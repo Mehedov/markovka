@@ -4,7 +4,7 @@ import { useGetGroupsQuery } from '@/services/group/groupApi'
 import { useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
 import { useGetTeacherRelationsQuery } from '@/services/teacher/teacherApi'
 import { User } from '@supabase/supabase-js'
-import { Card, Col, DatePicker, Row, Select } from 'antd'
+import { Card, Col, ConfigProvider, DatePicker, Row, Select } from 'antd'
 import dayjs from 'dayjs'
 import { useMemo, useState } from 'react'
 
@@ -76,13 +76,14 @@ export function AttendanceTableFilters({
 					/>
 				</Col>
 				<Col>
-					<DatePicker
-						size='large'
-						picker='month'
-						value={selectedMonth}
-						onChange={d => d && setSelectedMonth(d)}
-						style={{ width: '280px', padding: '12px', fontSize: '18px' }}
-					/>
+						<DatePicker
+							size='large'
+							picker='month'
+							value={selectedMonth}
+							onChange={d => d && setSelectedMonth(d)}
+							style={{ width: '280px', padding: '12px', fontSize: '18px' }}
+						/>
+				
 				</Col>
 			</Row>
 		</Card>

@@ -3,6 +3,9 @@ import { MainLayout } from '@/components/MainLayout'
 import { AntdProvider } from '@/providers/AntdProvider'
 import { StoreProvider } from '@/providers/StoreProvider'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
+import { ConfigProvider } from 'antd'
+import ruRU from 'antd/locale/ru_RU'
+
 
 export const metadata = {
 	title: 'Attendance System',
@@ -20,7 +23,10 @@ export default function RootLayout({
 				<AntdRegistry>
 					<StoreProvider>
 						<AntdProvider>
-							<MainLayout>{children}</MainLayout>
+							<ConfigProvider locale={ruRU}>
+								
+								<MainLayout>{children}</MainLayout>
+							</ConfigProvider>
 						</AntdProvider>
 					</StoreProvider>
 				</AntdRegistry>
