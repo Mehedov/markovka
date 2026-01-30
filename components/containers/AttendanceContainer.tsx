@@ -10,7 +10,7 @@ import { User } from '@supabase/supabase-js'
 import { AttendanceTableFilters } from '../elements/AttendanceTableFilters'
 import { AttendanceModal } from '../ui/AttendanceModal'
 
-export function AttendanceTableContainers() {
+export function AttendanceContainer() {
 	// Состояния фильтров
 	const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
 	const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
