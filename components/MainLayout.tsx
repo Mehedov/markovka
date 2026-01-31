@@ -4,10 +4,14 @@ import { supabase } from '@/lib/supabase'
 import { useGetProfilesQuery } from '@/services/teacher/teacherApi'
 import { formatName } from '@/utils/formatName'
 import {
+	AppstoreOutlined,
+	BookOutlined,
 	CalendarOutlined,
 	LoginOutlined,
 	LogoutOutlined,
 	SettingOutlined,
+	TeamOutlined,
+	UserAddOutlined,
 	UserOutlined,
 } from '@ant-design/icons'
 import {
@@ -25,7 +29,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 
-const { Header, Content } = Layout
+const { Header, Content, Sider } = Layout
 const { Text } = Typography
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
@@ -33,7 +37,12 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [currentUser, setCurrentUser] = useState<any>(null)
+	const [currentUser, setCurrentUser] = useState<{
+		id: string
+		email: string
+		app_metadata?: { role: string }
+	} | null>(null)
+	const [collapsed, setCollapsed] = useState(false)
 
 	// Подключаем профили из базы
 	const { data: profiles = [] } = useGetProfilesQuery()
@@ -87,19 +96,9 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	]
 
 	// Основное навигационное меню
-	const menuItems = [
+	const topMenuItems = [
 		...(currentUser
 			? [
-					// Показываем управление только АДМИНУ
-					...(isAdmin
-						? [
-								{
-									key: '/management',
-									icon: <SettingOutlined />,
-									label: <Link href='/management'>Управление</Link>,
-								},
-							]
-						: []),
 					{
 						key: '/',
 						icon: <CalendarOutlined />,
@@ -108,6 +107,37 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 				]
 			: []),
 	]
+
+	// Боковое меню для администратора
+	const adminSiderMenuItems = isAdmin
+		? [
+				{
+					key: '/management',
+					icon: <AppstoreOutlined />,
+					label: <Link href='/management'>Главная</Link>,
+				},
+				{
+					key: '/management/groups',
+					icon: <TeamOutlined />,
+					label: <Link href='/management/groups'>Группы</Link>,
+				},
+				{
+					key: '/management/students',
+					icon: <UserAddOutlined />,
+					label: <Link href='/management/students'>Студенты</Link>,
+				},
+				{
+					key: '/management/subjects',
+					icon: <BookOutlined />,
+					label: <Link href='/management/subjects'>Предметы</Link>,
+				},
+				{
+					key: '/management/teachers',
+					icon: <SettingOutlined />,
+					label: <Link href='/management/teachers'>Преподаватели</Link>,
+				},
+			]
+		: []
 
 	return (
 		<Layout style={{ minHeight: '100vh' }}>
@@ -131,7 +161,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 					<Menu
 						mode='horizontal'
 						selectedKeys={[pathname]}
-						items={menuItems}
+						items={topMenuItems}
 						style={{
 							minWidth: 300,
 							borderBottom: 'none',
@@ -197,14 +227,52 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 				</Space>
 			</Header>
 
-			<Content
-				style={{
-					padding: '32px 34px',
-					background: antdToken.colorBgLayout,
-				}}
-			>
-				<div style={{ width: '100%', margin: '0 auto' }}>{children}</div>
-			</Content>
+			<Layout>
+				{isAdmin && (
+					<Sider
+						collapsible
+						collapsed={collapsed}
+						onCollapse={value => setCollapsed(value)}
+						width={250}
+						style={{
+							background: antdToken.colorBgContainer,
+							borderRight: `1px solid ${antdToken.colorBorderSecondary}`,
+						}}
+					>
+						<div
+							style={{
+								height: 40,
+								margin: '16px',
+								paddingLeft: 8,
+								fontWeight: 'bold',
+								fontSize: '16px',
+								display: 'flex',
+								alignItems: 'center',
+							}}
+						>
+							{collapsed ? '' : 'Управление'}
+						</div>
+						<Menu
+							mode='inline'
+							selectedKeys={[pathname]}
+							items={adminSiderMenuItems}
+							style={{
+								borderRight: 0,
+								background: 'transparent',
+							}}
+						/>
+					</Sider>
+				)}
+				<Content
+					style={{
+						padding: '24px',
+						background: antdToken.colorBgLayout,
+						minHeight: 'calc(100vh - 64px)',
+					}}
+				>
+					<div style={{ width: '100%', margin: '0 auto' }}>{children}</div>
+				</Content>
+			</Layout>
 		</Layout>
 	)
 }
