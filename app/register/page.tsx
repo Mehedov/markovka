@@ -1,23 +1,30 @@
 'use client'
 import { supabase } from '@/lib/supabase'
-import { Button, Card, Form, Input, message } from 'antd'
-import { useRouter } from 'next/navigation'
+import { MailOutlined } from '@ant-design/icons'
+import { Alert, Button, Card, Form, Input, message } from 'antd'
+import { useState } from 'react'
 
-export default function LoginPage() {
-	const router = useRouter()
+export default function RegisterPage() {
+	const [isSent, setIsSent] = useState(false)
+	const [loading, setLoading] = useState(false)
 
-	const onFinish = async (values: { email: string; password: string }) => {
+	const onFinish = async (values: any) => {
+		setLoading(true)
 		const { error } = await supabase.auth.signUp({
-			email: values.email, // Используем email вместо username
+			email: values.email,
 			password: values.password,
+			options: {
+				// Указываем, куда вернуться после подтверждения
+				emailRedirectTo: `${window.location.origin}/auth/callback`,
+			},
 		})
 
+		setLoading(false)
+
 		if (error) {
-			message.error('Ошибка входа: ' + error.message)
+			message.error('Ошибка: ' + error.message)
 		} else {
-			message.success('Вы вошли!')
-			router.push('/management')
-			router.refresh()
+			setIsSent(true) // Показываем экран "Проверьте почту"
 		}
 	}
 
@@ -31,25 +38,35 @@ export default function LoginPage() {
 			}}
 		>
 			<Card title='Регистрация' style={{ width: 400 }}>
-				<Form onFinish={onFinish} layout='vertical'>
-					<Form.Item
-						name='email'
-						label='Email'
-						rules={[{ required: true, type: 'email' }]}
-					>
-						<Input placeholder='test@example.com' />
-					</Form.Item>
-					<Form.Item
-						name='password'
-						label='Пароль'
-						rules={[{ required: true }]}
-					>
-						<Input.Password />
-					</Form.Item>
-					<Button type='primary' htmlType='submit' block>
-						Войти
-					</Button>
-				</Form>
+				{!isSent ? (
+					<Form onFinish={onFinish} layout='vertical'>
+						<Form.Item
+							name='email'
+							label='Email'
+							rules={[{ required: true, type: 'email' }]}
+						>
+							<Input placeholder='test@example.com' />
+						</Form.Item>
+						<Form.Item
+							name='password'
+							label='Пароль'
+							rules={[{ required: true, min: 6 }]}
+						>
+							<Input.Password />
+						</Form.Item>
+						<Button type='primary' htmlType='submit' block loading={loading}>
+							Зарегистрироваться
+						</Button>
+					</Form>
+				) : (
+					<Alert
+						message='Письмо отправлено!'
+						description='Пожалуйста, проверьте почту и подтвердите аккаунт, прежде чем войти.'
+						type='info'
+						showIcon
+						icon={<MailOutlined />}
+					/>
+				)}
 			</Card>
 		</div>
 	)
