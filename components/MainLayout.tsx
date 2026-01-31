@@ -24,6 +24,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { ThemeSwitcher } from './ThemeSwitcher'
+import { User } from '@supabase/supabase-js'
 
 const { Header, Content } = Layout
 const { Text } = Typography
@@ -33,7 +34,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [currentUser, setCurrentUser] = useState<any>(null)
+	const [currentUser, setCurrentUser] = useState<User | null>(null)
 
 	// Подключаем профили из базы
 	const { data: profiles = [] } = useGetProfilesQuery()

@@ -205,7 +205,7 @@ export default function ManagementPage() {
 					<Card title='Текущие доступы'>
 						<List
 							dataSource={relations}
-							style={{maxHeight: '200px', overflowY: 'scroll'}}
+							style={{maxHeight: '200px', overflowY: 'auto'}}
 							renderItem={rel => {
 								const teacher = profiles.find(p => p.id === rel.teacher_id)
 								const subject = subjects.find(s => s.id === rel.subject_id)
@@ -254,7 +254,7 @@ export default function ManagementPage() {
 							</Button>
 						</Form>
 						<Divider>Список групп</Divider>
-						<div style={{ maxHeight: 200, overflowY: 'scroll' }}>
+						<div style={{ maxHeight: 200, overflowY: 'auto' }}>
 							{groups.map((g: Group) => (
 								<div
 									key={g.id}
