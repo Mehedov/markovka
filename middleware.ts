@@ -34,18 +34,34 @@ export async function middleware(request: NextRequest) {
 		},
 	)
 
-	// Важно: getUser() надежнее getSession() для защиты роутов
 	const {
 		data: { user },
 	} = await supabase.auth.getUser()
 
-	if (!user && request.nextUrl.pathname.startsWith('/management')) {
+	// 1. Если пользователь вообще не залогинен — кидаем на логин
+	if (
+		!user &&
+		(request.nextUrl.pathname.startsWith('/management') ||
+			request.nextUrl.pathname === '/')
+	) {
 		return NextResponse.redirect(new URL('/login', request.url))
+	}
+
+	// 2. БЛОКИРОВКА УЧИТЕЛЕЙ:
+	// Проверяем роль в метаданных. Если путь начинается на /management, а роль не 'admin'
+	if (request.nextUrl.pathname.startsWith('/management')) {
+		const role = user?.app_metadata?.role
+
+		if (role !== 'admin') {
+			// Если это учитель (или кто-то еще без роли админа),
+			// выкидываем его на главную страницу посещаемости
+			return NextResponse.redirect(new URL('/', request.url))
+		}
 	}
 
 	return response
 }
 
 export const config = {
-	matcher: ['/management/:path*'],
+	matcher: ['/', '/management/:path*'],
 }

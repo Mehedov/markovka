@@ -1,38 +1,60 @@
-"use client";
+'use client'
 
 import { supabase } from '@/lib/supabase'
+import { useGetProfilesQuery } from '@/services/teacher/teacherApi'
+import { formatName } from '@/utils/formatName'
 import {
-  CalendarOutlined,
-  CrownOutlined,
-  LoginOutlined,
-  LogoutOutlined,
-  SettingOutlined,
-} from "@ant-design/icons";
-import { Button, Layout, Menu, Space, Typography, theme } from "antd";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+	AppstoreOutlined,
+	BookOutlined,
+	CalendarOutlined,
+	LoginOutlined,
+	LogoutOutlined,
+	SettingOutlined,
+	TeamOutlined,
+	UserAddOutlined,
+	UserOutlined,
+} from '@ant-design/icons'
+import { User } from '@supabase/supabase-js'
+import {
+	Avatar,
+	Button,
+	Dropdown,
+	Layout,
+	Menu,
+	Space,
+	theme,
+	Typography,
+} from 'antd'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import React, { useEffect, useState } from 'react'
+import { ThemeSwitcher } from './ThemeSwitcher'
 
-const { Header, Content, Footer } = Layout;
+const { Header, Content, Sider } = Layout
+const { Text } = Typography
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const router = useRouter()
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [isLoggedIn, setIsLoggedIn] = useState(false)
+	const [currentUser, setCurrentUser] = useState<User | null>(null)
+	const [collapsed, setCollapsed] = useState(false)
+
+	// Подключаем профили из базы
+	const { data: profiles = [] } = useGetProfilesQuery()
 
 	useEffect(() => {
-		// 1. Проверяем текущую сессию
+		// Проверяем сессию при загрузке
 		supabase.auth.getSession().then(({ data: { session } }) => {
-			setIsLoggedIn(!!session)
+			setCurrentUser(session?.user ?? null)
 		})
 
-		// 2. Подписываемся на изменения (логин/логаут)
+		// Слушаем изменения авторизации
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event, session) => {
-			setIsLoggedIn(!!session)
+			setCurrentUser(session?.user ?? null)
 		})
 
 		return () => subscription.unsubscribe()
@@ -40,92 +62,214 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
 	const handleLogout = async () => {
 		await supabase.auth.signOut()
-		router.push('/')
+		router.push('/login')
 	}
 
-  // Формируем пункты меню динамически
-  const menuItems = [
-    {
-      key: "/",
-      icon: <CalendarOutlined />,
-      label: <Link href="/">Посещаемость</Link>,
-    },
-    // Добавляем ссылку на Управление только если пользователь авторизован
-    ...(isLoggedIn
-      ? [
-          {
-            key: "/management",
-            icon: <SettingOutlined />,
-            label: <Link className="" href="/management">Управление</Link>,
-          },
-        ]
-      : []),
-  ];
+	// Находим данные профиля текущего пользователя
+	const myProfile = profiles.find(p => p.id === currentUser?.id)
+	const isAdmin = currentUser?.app_metadata?.role === 'admin'
+	const profileName = myProfile?.full_name
+		? formatName(myProfile?.full_name)
+		: null
+	console.log(profileName)
 
-  return (
-    <Layout style={{ minHeight: "100vh" }}>
-      <Header
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 24px",
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          zIndex: 10,
-          backgroundColor: antdToken.colorBgLayout,
-        }}
-      >
-        <Space size="large">
-          <Menu
-            theme="dark"
-            mode="horizontal"
-            selectedKeys={[pathname]}
-            items={menuItems}
-            style={{
-              minWidth: 300,
-              borderBottom: "none",
-              backgroundColor: antdToken.colorBgLayout,
+	// Выпадающее меню аватара
+	const userMenuItems = [
+		{
+			key: 'profile',
+			icon: <UserOutlined />,
+			label: <Link href='/profile'>Мой профиль</Link>,
+		},
+		{
+			type: 'divider' as const,
+		},
+		{
+			key: 'logout',
+			icon: <LogoutOutlined />,
+			label: 'Выйти',
+			danger: true,
+			onClick: handleLogout,
+		},
+	]
 
-            }}
-          />
-        </Space>
+	// Основное навигационное меню
+	const topMenuItems = [
+		...(currentUser
+			? [
+					{
+						key: '/',
+						icon: <CalendarOutlined />,
+						label: <Link href='/'>Посещаемость</Link>,
+					},
+				]
+			: []),
+	]
 
-        <Space size="middle">
-          {isLoggedIn ? (
-            <>
-              <Space style={{ marginRight: 16 }}>
-                <CrownOutlined style={{ color: "#ffec3d" }} />
-                <Typography.Text style={{ color: "white" }}>
-                  Администратор
-                </Typography.Text>
-              </Space>
-              <Button
-                type="primary"
-                danger
-                ghost
-                icon={<LogoutOutlined />}
-                onClick={handleLogout}
-              >
-                Выйти
-              </Button>
-            </>
-          ) : (
-            <Button
-              type="primary"
-              icon={<LoginOutlined />}
-              onClick={() => router.push("/login")}
-            >
-              Войти как админ
-            </Button>
-          )}
-        </Space>
-      </Header>
+	// Боковое меню для администратора
+	const adminSiderMenuItems = isAdmin
+		? [
+				{
+					key: '/management',
+					icon: <AppstoreOutlined />,
+					label: <Link href='/management'>Главная</Link>,
+				},
+				{
+					key: '/management/groups',
+					icon: <TeamOutlined />,
+					label: <Link href='/management/groups'>Группы</Link>,
+				},
+				{
+					key: '/management/students',
+					icon: <UserAddOutlined />,
+					label: <Link href='/management/students'>Студенты</Link>,
+				},
+				{
+					key: '/management/subjects',
+					icon: <BookOutlined />,
+					label: <Link href='/management/subjects'>Предметы</Link>,
+				},
+				{
+					key: '/management/teachers',
+					icon: <SettingOutlined />,
+					label: <Link href='/management/teachers'>Преподаватели</Link>,
+				},
+			]
+		: []
 
-      <Content
-        style={{ padding: "32px 50px", background: antdToken.colorBgLayout }}
-      >
-        <div style={{ maxWidth: 1400, margin: "0 auto" }}>{children}</div>
-      </Content>
-    </Layout>
-  );
-};
+	return (
+		<Layout style={{ minHeight: '100vh' }}>
+			<Header
+				style={{
+					position: 'sticky',
+					top: 0,
+					width: '100%',
+					display: 'flex',
+					alignItems: 'center',
+					justifyContent: 'space-between',
+					padding: '0 24px',
+					boxShadow: '0 1px 5px rgba(0,0,0,0.10)',
+					zIndex: 10,
+					backgroundColor: antdToken.colorBgLayout,
+					color: antdToken.colorText,
+					borderBottom: `1px solid ${antdToken.colorBorderSecondary}`,
+				}}
+			>
+				<Space size='large'>
+					<Menu
+						mode='horizontal'
+						selectedKeys={[pathname]}
+						items={topMenuItems}
+						style={{
+							minWidth: 300,
+							borderBottom: 'none',
+							backgroundColor: antdToken.colorBgLayout,
+							color: antdToken.colorText,
+						}}
+					/>
+				</Space>
+
+				<Space size='middle'>
+					<ThemeSwitcher />
+
+					{currentUser ? (
+						<Dropdown
+							menu={{ items: userMenuItems }}
+							placement='bottomRight'
+							arrow
+						>
+							<Space
+								style={{
+									cursor: 'pointer',
+									padding: '4px 8px',
+									borderRadius: 8,
+								}}
+							>
+								<div
+									style={{
+										textAlign: 'right',
+										lineHeight: 1,
+										display: 'flex',
+										flexDirection: 'column',
+									}}
+								>
+									<Text strong style={{ fontSize: '16px' }}>
+										{profileName || 'Загрузка...'}
+									</Text>
+									<Text type='secondary' style={{ fontSize: '15px' }}>
+										{isAdmin ? 'Администратор' : 'Преподаватель'}
+									</Text>
+								</div>
+								<Avatar
+									size='large'
+									src={myProfile?.avatar_url}
+									icon={<UserOutlined />}
+									style={{ backgroundColor: antdToken.colorPrimary }}
+								/>
+							</Space>
+						</Dropdown>
+					) : (
+						<Space>
+							<Button
+								type='primary'
+								icon={<LoginOutlined />}
+								onClick={() => router.push('/login')}
+							>
+								Войти
+							</Button>
+							<Button onClick={() => router.push('/register')}>
+								Регистрация
+							</Button>
+						</Space>
+					)}
+				</Space>
+			</Header>
+
+			<Layout>
+				{isAdmin && (
+					<Sider
+						collapsible
+						collapsed={collapsed}
+						onCollapse={value => setCollapsed(value)}
+						width={250}
+						style={{
+							background: antdToken.colorBgContainer,
+							borderRight: `1px solid ${antdToken.colorBorderSecondary}`,
+						}}
+					>
+						<div
+							style={{
+								height: 40,
+								margin: '16px',
+								paddingLeft: 8,
+								fontWeight: 'bold',
+								fontSize: '16px',
+								display: 'flex',
+								alignItems: 'center',
+							}}
+						>
+							{collapsed ? '' : 'Управление'}
+						</div>
+						<Menu
+							mode='inline'
+							selectedKeys={[pathname]}
+							items={adminSiderMenuItems}
+							style={{
+								borderRight: 0,
+								background: 'transparent',
+							}}
+						/>
+					</Sider>
+				)}
+				<Content
+					style={{
+						padding: '24px',
+						background: antdToken.colorBgLayout,
+						minHeight: 'calc(100vh - 64px)',
+					}}
+				>
+					<div style={{ width: '100%', margin: '0 auto' }}>{children}</div>
+				</Content>
+			</Layout>
+		</Layout>
+	)
+}
