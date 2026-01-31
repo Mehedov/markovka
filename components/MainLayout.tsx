@@ -14,6 +14,7 @@ import {
 	UserAddOutlined,
 	UserOutlined,
 } from '@ant-design/icons'
+import { User } from '@supabase/supabase-js'
 import {
 	Avatar,
 	Button,
@@ -37,11 +38,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [currentUser, setCurrentUser] = useState<{
-		id: string
-		email: string
-		app_metadata?: { role: string }
-	} | null>(null)
+	const [currentUser, setCurrentUser] = useState<User | null>(null)
 	const [collapsed, setCollapsed] = useState(false)
 
 	// Подключаем профили из базы
