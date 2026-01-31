@@ -26,54 +26,56 @@ body {
 }
 
 /* custom scroll */
+/* 1. Основные стили для всех состояний */
 html::-webkit-scrollbar,
 body::-webkit-scrollbar,
 *::-webkit-scrollbar {
   width: 8px !important;
   height: 8px !important;
+  display: block !important;
 }
 
+/* 2. Удаление кнопок (стрелочек) */
 html::-webkit-scrollbar-button,
 body::-webkit-scrollbar-button,
 *::-webkit-scrollbar-button {
   display: none !important;
 }
 
-/* 3. Трек (дорожка) — делаем полностью прозрачной */
+/* 3. Трек (фон) — прозрачный везде по умолчанию */
 html::-webkit-scrollbar-track,
 body::-webkit-scrollbar-track,
 *::-webkit-scrollbar-track {
   background: transparent !important;
 }
 
-/* 4. Ползунок (Thumb) */
+/* 4. Ползунок (светлая тема по умолчанию) */
 html::-webkit-scrollbar-thumb,
 body::-webkit-scrollbar-thumb,
 *::-webkit-scrollbar-thumb {
   background-color: rgba(100, 100, 100, 0.4) !important;
   border-radius: 10px !important;
-  /* Трюк для отступов: прозрачная граница + content-box */
   border: 2px solid transparent !important;
   background-clip: content-box !important;
 }
 
-[data-theme="dark"] *:hover::-webkit-scrollbar-thumb {
+/* 5. ИСПРАВЛЕННЫЕ ТЕМНЫЕ СЕЛЕКТОРЫ (добавлен пробел перед *) */
+[data-theme="dark"] ::-webkit-scrollbar-thumb,
+[data-theme="dark"]::-webkit-scrollbar-thumb {
   background-color: rgba(255, 255, 255, 0.3) !important;
 }
 
-/* Специально для корневых элементов, чтобы убрать черный фон */
-html::-webkit-scrollbar-track,
-body::-webkit-scrollbar-track {
-  background: transparent !important;
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+[data-theme="dark"]::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(255, 255, 255, 0.5) !important;
 }
 
-/* На всякий случай укажите цветовой режим, чтобы Chrome понимал контекст */
-html {
-  color-scheme: light dark; /* Помогает браузеру адаптировать системные элементы */
-}
-
-/* Если в темной теме все равно лезет чернота, можно явно задать фон трека 
-   под цвет вашего контейнера из AntD */
+[data-theme="dark"] ::-webkit-scrollbar-track,
 [data-theme="dark"]::-webkit-scrollbar-track {
   background: #141414 !important;
+}
+
+/* 6. Системные настройки */
+html {
+  color-scheme: light dark;
 }
