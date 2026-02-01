@@ -4,11 +4,16 @@ import { supabase } from '@/lib/supabase'
 import { useGetProfileQuery } from '@/services/teacher/teacherApi' // Используем точечный запрос
 import { formatName } from '@/utils/formatName'
 import {
+	AppstoreOutlined,
+	BookOutlined,
 	CalendarOutlined,
 	LogoutOutlined,
 	SettingOutlined,
+	TeamOutlined,
+	UserAddOutlined,
 	UserOutlined,
 } from '@ant-design/icons'
+import { User } from '@supabase/supabase-js'
 import {
 	Avatar,
 	Button,
@@ -25,7 +30,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import React, { useEffect, useState } from 'react'
 import { ThemeSwitcher } from './ThemeSwitcher'
 
-const { Header, Content } = Layout
+const { Header, Content, Sider } = Layout
 const { Text } = Typography
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
@@ -108,6 +113,37 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 			: []),
 	]
 
+	// Боковое меню для администратора
+	const adminSiderMenuItems = isAdmin
+		? [
+				{
+					key: '/management',
+					icon: <AppstoreOutlined />,
+					label: <Link href='/management'>Главная</Link>,
+				},
+				{
+					key: '/management/groups',
+					icon: <TeamOutlined />,
+					label: <Link href='/management/groups'>Группы</Link>,
+				},
+				{
+					key: '/management/students',
+					icon: <UserAddOutlined />,
+					label: <Link href='/management/students'>Студенты</Link>,
+				},
+				{
+					key: '/management/subjects',
+					icon: <BookOutlined />,
+					label: <Link href='/management/subjects'>Предметы</Link>,
+				},
+				{
+					key: '/management/teachers',
+					icon: <SettingOutlined />,
+					label: <Link href='/management/teachers'>Преподаватели</Link>,
+				},
+			]
+		: []
+
 	return (
 		<Layout style={{ minHeight: '100vh' }}>
 			<Header
@@ -130,7 +166,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 					<Menu
 						mode='horizontal'
 						selectedKeys={[pathname]}
-						items={menuItems}
+						items={topMenuItems}
 						style={{
 							minWidth: 300,
 							borderBottom: 'none',
