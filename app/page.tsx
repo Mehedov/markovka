@@ -1,3 +1,4 @@
+'use client'
 import { AttendanceContainer } from '@/components/containers/AttendanceContainer'
 import 'dayjs/locale/ru'
 

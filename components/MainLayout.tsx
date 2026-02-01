@@ -1,13 +1,12 @@
 'use client'
 
 import { supabase } from '@/lib/supabase'
-import { useGetProfilesQuery } from '@/services/teacher/teacherApi'
+import { useGetProfileQuery } from '@/services/teacher/teacherApi' // Используем точечный запрос
 import { formatName } from '@/utils/formatName'
 import {
 	AppstoreOutlined,
 	BookOutlined,
 	CalendarOutlined,
-	LoginOutlined,
 	LogoutOutlined,
 	SettingOutlined,
 	TeamOutlined,
@@ -21,6 +20,7 @@ import {
 	Dropdown,
 	Layout,
 	Menu,
+	Skeleton,
 	Space,
 	theme,
 	Typography,
@@ -38,51 +38,51 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [currentUser, setCurrentUser] = useState<User | null>(null)
-	const [collapsed, setCollapsed] = useState(false)
+	const [userId, setUserId] = useState<string | null>(null)
+	const [userMetadata, setUserMetadata] = useState<any>(null)
 
-	// Подключаем профили из базы
-	const { data: profiles = [] } = useGetProfilesQuery()
-
+	// 1. Получаем сессию
 	useEffect(() => {
-		// Проверяем сессию при загрузке
 		supabase.auth.getSession().then(({ data: { session } }) => {
-			setCurrentUser(session?.user ?? null)
+			setUserId(session?.user?.id ?? null)
+			setUserMetadata(session?.user?.app_metadata ?? null)
 		})
 
-		// Слушаем изменения авторизации
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event, session) => {
-			setCurrentUser(session?.user ?? null)
+			setUserId(session?.user?.id ?? null)
+			setUserMetadata(session?.user?.app_metadata ?? null)
 		})
 
 		return () => subscription.unsubscribe()
 	}, [])
+
+	// 2. Делаем запрос профиля ТОЛЬКО для этого ID
+	const { data: myProfile, isLoading: isProfileLoading } = useGetProfileQuery(
+		userId ?? '',
+		{
+			skip: !userId, // Не делаем запрос, пока нет ID
+		},
+	)
 
 	const handleLogout = async () => {
 		await supabase.auth.signOut()
 		router.push('/login')
 	}
 
-	// Находим данные профиля текущего пользователя
-	const myProfile = profiles.find(p => p.id === currentUser?.id)
-	const isAdmin = currentUser?.app_metadata?.role === 'admin'
+	const isAdmin = userMetadata?.role === 'admin'
 	const profileName = myProfile?.full_name
-		? formatName(myProfile?.full_name)
+		? formatName(myProfile.full_name)
 		: null
-	console.log(profileName)
 
-	// Выпадающее меню аватара
 	const userMenuItems = [
 		{
 			key: 'profile',
 			icon: <UserOutlined />,
 			label: <Link href='/profile'>Мой профиль</Link>,
 		},
-		{
-			type: 'divider' as const,
-		},
+		{ type: 'divider' as const },
 		{
 			key: 'logout',
 			icon: <LogoutOutlined />,
@@ -92,10 +92,18 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 		},
 	]
 
-	// Основное навигационное меню
-	const topMenuItems = [
-		...(currentUser
+	const menuItems = [
+		...(userId
 			? [
+					...(isAdmin
+						? [
+								{
+									key: '/management',
+									icon: <SettingOutlined />,
+									label: <Link href='/management'>Управление</Link>,
+								},
+							]
+						: []),
 					{
 						key: '/',
 						icon: <CalendarOutlined />,
@@ -162,8 +170,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 						style={{
 							minWidth: 300,
 							borderBottom: 'none',
-							backgroundColor: antdToken.colorBgLayout,
-							color: antdToken.colorText,
+							backgroundColor: 'transparent',
 						}}
 					/>
 				</Space>
@@ -171,19 +178,13 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 				<Space size='middle'>
 					<ThemeSwitcher />
 
-					{currentUser ? (
+					{userId ? (
 						<Dropdown
 							menu={{ items: userMenuItems }}
 							placement='bottomRight'
 							arrow
 						>
-							<Space
-								style={{
-									cursor: 'pointer',
-									padding: '4px 8px',
-									borderRadius: 8,
-								}}
-							>
+							<Space style={{ cursor: 'pointer', padding: '4px 8px' }}>
 								<div
 									style={{
 										textAlign: 'right',
@@ -192,12 +193,22 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 										flexDirection: 'column',
 									}}
 								>
-									<Text strong style={{ fontSize: '16px' }}>
-										{profileName || 'Загрузка...'}
-									</Text>
-									<Text type='secondary' style={{ fontSize: '15px' }}>
-										{isAdmin ? 'Администратор' : 'Преподаватель'}
-									</Text>
+									{isProfileLoading ? (
+										<Skeleton.Input
+											active
+											size='small'
+											style={{ width: 100, height: 16 }}
+										/>
+									) : (
+										<>
+											<Text strong style={{ fontSize: '16px' }}>
+												{profileName || 'Без имени'}
+											</Text>
+											<Text type='secondary' style={{ fontSize: '13px' }}>
+												{isAdmin ? 'Администратор' : 'Преподаватель'}
+											</Text>
+										</>
+									)}
 								</div>
 								<Avatar
 									size='large'
@@ -209,67 +220,19 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 						</Dropdown>
 					) : (
 						<Space>
-							<Button
-								type='primary'
-								icon={<LoginOutlined />}
-								onClick={() => router.push('/login')}
-							>
+							<Button type='primary' onClick={() => router.push('/login')}>
 								Войти
-							</Button>
-							<Button onClick={() => router.push('/register')}>
-								Регистрация
 							</Button>
 						</Space>
 					)}
 				</Space>
 			</Header>
 
-			<Layout>
-				{isAdmin && (
-					<Sider
-						collapsible
-						collapsed={collapsed}
-						onCollapse={value => setCollapsed(value)}
-						width={250}
-						style={{
-							background: antdToken.colorBgContainer,
-							borderRight: `1px solid ${antdToken.colorBorderSecondary}`,
-						}}
-					>
-						<div
-							style={{
-								height: 40,
-								margin: '16px',
-								paddingLeft: 8,
-								fontWeight: 'bold',
-								fontSize: '16px',
-								display: 'flex',
-								alignItems: 'center',
-							}}
-						>
-							{collapsed ? '' : 'Управление'}
-						</div>
-						<Menu
-							mode='inline'
-							selectedKeys={[pathname]}
-							items={adminSiderMenuItems}
-							style={{
-								borderRight: 0,
-								background: 'transparent',
-							}}
-						/>
-					</Sider>
-				)}
-				<Content
-					style={{
-						padding: '24px',
-						background: antdToken.colorBgLayout,
-						minHeight: 'calc(100vh - 64px)',
-					}}
-				>
-					<div style={{ width: '100%', margin: '0 auto' }}>{children}</div>
-				</Content>
-			</Layout>
+			<Content
+				style={{ padding: '32px 34px', background: antdToken.colorBgLayout }}
+			>
+				<div style={{ width: '100%', margin: '0 auto' }}>{children}</div>
+			</Content>
 		</Layout>
 	)
 }

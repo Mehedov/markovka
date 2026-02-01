@@ -3,9 +3,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
 	let response = NextResponse.next({
-		request: {
-			headers: request.headers,
-		},
+		request: { headers: request.headers },
 	})
 
 	const supabase = createServerClient(
@@ -17,17 +15,13 @@ export async function middleware(request: NextRequest) {
 					return request.cookies.get(name)?.value
 				},
 				set(name: string, value: string, options: CookieOptions) {
+					// Устанавливаем в запрос, чтобы серверные компоненты видели актуальную сессию
 					request.cookies.set({ name, value, ...options })
-					response = NextResponse.next({
-						request: { headers: request.headers },
-					})
+					// Устанавливаем в ответ, чтобы браузер сохранил куку
 					response.cookies.set({ name, value, ...options })
 				},
 				remove(name: string, options: CookieOptions) {
 					request.cookies.set({ name, value: '', ...options })
-					response = NextResponse.next({
-						request: { headers: request.headers },
-					})
 					response.cookies.set({ name, value: '', ...options })
 				},
 			},
@@ -38,23 +32,18 @@ export async function middleware(request: NextRequest) {
 		data: { user },
 	} = await supabase.auth.getUser()
 
-	// 1. Если пользователь вообще не залогинен — кидаем на логин
-	if (
-		!user &&
-		(request.nextUrl.pathname.startsWith('/management') ||
-			request.nextUrl.pathname === '/')
-	) {
+	const isManagementPath = request.nextUrl.pathname.startsWith('/management')
+	const isRootPath = request.nextUrl.pathname === '/'
+
+	// 1. Защита: Если нет юзера, а он лезет в закрытую зону
+	if (!user && (isManagementPath || isRootPath)) {
 		return NextResponse.redirect(new URL('/login', request.url))
 	}
 
-	// 2. БЛОКИРОВКА УЧИТЕЛЕЙ:
-	// Проверяем роль в метаданных. Если путь начинается на /management, а роль не 'admin'
-	if (request.nextUrl.pathname.startsWith('/management')) {
+	// 2. Ролевая модель: Только админ в /management
+	if (isManagementPath) {
 		const role = user?.app_metadata?.role
-
 		if (role !== 'admin') {
-			// Если это учитель (или кто-то еще без роли админа),
-			// выкидываем его на главную страницу посещаемости
 			return NextResponse.redirect(new URL('/', request.url))
 		}
 	}

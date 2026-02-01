@@ -1,7 +1,7 @@
 'use client'
 
 import {
-	useGetProfilesQuery,
+	useGetProfileQuery, // Используем точечный запрос
 	useUpdateProfileMutation,
 } from '@/services/teacher/teacherApi'
 import { User } from '@supabase/supabase-js'
@@ -13,46 +13,44 @@ export function AttendanceModal({ currentUser }: { currentUser: User | null }) {
 	const [hasJustFinishedOnboarding, setHasJustFinishedOnboarding] =
 		useState(false)
 
-	// Добавляем refetch, чтобы принудительно обновить список профилей при логине
-	const { data: profiles = [], refetch: refetchProfiles } =
-		useGetProfilesQuery()
-
-	// ВЫЧИСЛЯЕМ, НУЖЕН ЛИ ONBOARDING
-	const myProfile = useMemo(
-		() => profiles.find(p => p.id === currentUser?.id),
-		[profiles, currentUser],
+	// Получаем профиль только текущего пользователя
+	const { data: myProfile, isLoading: isProfileLoading } = useGetProfileQuery(
+		currentUser?.id ?? '',
+		{ skip: !currentUser?.id },
 	)
 
 	const shouldShowOnboarding = useMemo(() => {
-		// Флаг для закрытия модалки после успешного ввода имени
-
-		// Не показываем, если: еще нет юзера, уже ввели имя в этой сессии, или это админ
 		if (!currentUser || hasJustFinishedOnboarding) return false
 		if (currentUser.app_metadata?.role === 'admin') return false
+		if (isProfileLoading) return false
 
-		// Показываем, если профили загружены, но имени нет
-		if (profiles.length > 0) {
-			return !myProfile || !myProfile.full_name
-		}
+		// Список дефолтных имен, которые считаются "пустыми"
+		const defaultNames = ['Новый преподаватель', 'Новый пользователь', '']
 
-		return false
-	}, [currentUser, myProfile, profiles, hasJustFinishedOnboarding])
+		// Показываем, если записи нет ВООБЩЕ или имя совпадает с дефолтным
+		const isNameEmpty =
+			!myProfile?.full_name || defaultNames.includes(myProfile.full_name.trim())
+
+		return isNameEmpty
+	}, [currentUser, myProfile, isProfileLoading, hasJustFinishedOnboarding])
 
 	const handleFinishOnboarding = async (values: { full_name: string }) => {
 		try {
-			if (currentUser && values) {
+			if (currentUser && values.full_name) {
 				await updateProfile({
 					id: currentUser.id,
 					full_name: values.full_name,
 				}).unwrap()
 
 				message.success('Приятно познакомиться, ' + values.full_name)
-				setHasJustFinishedOnboarding(true) // Мгновенно скрываем модалку
+				setHasJustFinishedOnboarding(true)
 			}
 		} catch (e) {
+			// Если здесь ошибка - проверь RLS политики в Supabase (UPDATE)
 			message.error('Не удалось сохранить имя')
 		}
 	}
+
 	return (
 		<Modal
 			title='Добро пожаловать в систему!'
@@ -60,6 +58,7 @@ export function AttendanceModal({ currentUser }: { currentUser: User | null }) {
 			footer={null}
 			closable={false}
 			maskClosable={false}
+			destroyOnClose
 		>
 			<p>
 				Пожалуйста, представьтесь, чтобы продолжить работу. Это имя будет

@@ -3,19 +3,17 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
-	const requestUrl = new URL(request.url) // Исправляем ошибку ts(2345)
-	const code = requestUrl.searchParams.get('code')
-	const next = requestUrl.searchParams.get('next') ?? '/management'
+	const { searchParams, origin } = new URL(request.url)
+	const code = searchParams.get('code')
+	const next = searchParams.get('next') ?? '/management'
 
 	if (code) {
-		const cookieStore = await cookies() // Добавляем await для Next.js 15
-
+		const cookieStore = await cookies() // Асинхронные куки для Next 15
 		const supabase = createServerClient(
 			process.env.NEXT_PUBLIC_SUPABASE_URL!,
 			process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 			{
 				cookies: {
-					// Теперь ошибки ts(2339) исчезнут, так как cookieStore уже разрешен
 					get(name: string) {
 						return cookieStore.get(name)?.value
 					},
@@ -23,19 +21,14 @@ export async function GET(request: Request) {
 						cookieStore.set({ name, value, ...options })
 					},
 					remove(name: string, options: CookieOptions) {
-						cookieStore.delete({ name, ...options })
+						cookieStore.set({ name, value: '', ...options, maxAge: -1 })
 					},
 				},
 			},
 		)
 
 		const { error } = await supabase.auth.exchangeCodeForSession(code)
-
-		if (!error) {
-			return NextResponse.redirect(`${requestUrl.origin}${next}`)
-		}
+		if (!error) return NextResponse.redirect(`${origin}${next}`)
 	}
-
-	// В случае ошибки возвращаем на логин
-	return NextResponse.redirect(`${requestUrl.origin}/login?error=auth_failed`)
+	return NextResponse.redirect(`${origin}/login?error=auth_failed`)
 }
