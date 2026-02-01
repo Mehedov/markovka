@@ -1,310 +1,363 @@
-"use client";
+'use client'
 
-import { supabase } from "@/lib/supabase";
-import { useGetAttendanceQuery } from "@/services/attendance/attendanceApi";
-import { useGetStudentsQuery } from "@/services/students/studentsApi";
-import { useGetSubjectsQuery } from "@/services/subjects/subjectsApi";
+import { supabase } from '@/lib/supabase'
+import { useGetAttendanceQuery } from '@/services/attendance/attendanceApi'
+import { useGetStudentsQuery } from '@/services/students/studentsApi'
+import { useGetSubjectsQuery } from '@/services/subjects/subjectsApi'
 import {
-  useGetProfilesQuery,
-  useGetTeacherRelationsQuery,
-} from "@/services/teacher/teacherApi";
-import { formatName } from "@/utils/formatName";
+	useGetProfilesQuery,
+	useGetTeacherRelationsQuery,
+} from '@/services/teacher/teacherApi'
+import { formatName } from '@/utils/formatName'
 import {
-  BookOutlined,
-  FileExcelOutlined,
-  RiseOutlined,
-  TeamOutlined,
-  UserOutlined,
-} from "@ant-design/icons";
-import { User } from "@supabase/supabase-js";
+	BookOutlined,
+	FileExcelOutlined,
+	RiseOutlined,
+	TeamOutlined,
+	UserOutlined,
+} from '@ant-design/icons'
+import { User } from '@supabase/supabase-js'
 import {
-  Avatar,
-  Button,
-  Card,
-  theme,
-  Col,
-  DatePicker,
-  Divider,
-  Empty,
-  Row,
-  Space,
-  Statistic,
-  Typography,
-  Flex,
-} from "antd";
-import dayjs from "dayjs";
-import "dayjs/locale/ru";
-import { useEffect, useMemo, useState } from "react";
-import * as XLSX from "xlsx";
+	Avatar,
+	Button,
+	Card,
+	Col,
+	DatePicker,
+	Divider,
+	Empty,
+	Flex,
+	Row,
+	Space,
+	Statistic,
+	theme,
+	Typography,
+} from 'antd'
+import dayjs from 'dayjs'
+import 'dayjs/locale/ru'
+import { useEffect, useMemo, useState } from 'react'
+import * as XLSX from 'xlsx'
 
-dayjs.locale("ru");
-const { Title, Text } = Typography;
+dayjs.locale('ru')
+const { Title, Text } = Typography
 
 export default function ProfilePage() {
-  const { token } = theme.useToken();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [selectedMonth, setSelectedMonth] = useState(dayjs());
+	const { token } = theme.useToken()
+	const [currentUser, setCurrentUser] = useState<User | null>(null)
+	const [selectedMonth, setSelectedMonth] = useState(dayjs())
 
-  const { data: profiles = [] } = useGetProfilesQuery();
-  const { data: relations = [] } = useGetTeacherRelationsQuery();
-  const { data: subjects = [] } = useGetSubjectsQuery();
-  const { data: attendance = [] } = useGetAttendanceQuery();
-  const { data: allStudents = [] } = useGetStudentsQuery();
+	const { data: profiles = [] } = useGetProfilesQuery()
+	const { data: relations = [] } = useGetTeacherRelationsQuery()
+	const { data: subjects = [] } = useGetSubjectsQuery()
+	const { data: attendance = [] } = useGetAttendanceQuery()
+	const { data: allStudents = [] } = useGetStudentsQuery()
 
-  useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user));
-  }, []);
+	useEffect(() => {
+		supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user))
+	}, [])
 
-  const myProfile = profiles.find((p) => p.id === currentUser?.id);
+	const myProfile = profiles.find(p => p.id === currentUser?.id)
 
-  // --- ЛОГИКА АНАЛИТИКИ ---
-  const analytics = useMemo(() => {
-    if (!currentUser || !relations.length) return null;
+	// --- ЛОГИКА АНАЛИТИКИ ---
+	const analytics = useMemo(() => {
+		if (!currentUser || !relations.length) return null
 
-    const mySubjectIds = relations
-      .filter((r) => r.teacher_id === currentUser.id)
-      .map((r) => r.subject_id);
+		const mySubjectIds = relations
+			.filter(r => r.teacher_id === currentUser.id)
+			.map(r => r.subject_id)
 
-    const filteredAttendance = attendance.filter((a) => {
-      const isMySubject = mySubjectIds.includes(a.subject_id);
-      const isSameMonth = dayjs(a.date).isSame(selectedMonth, "month");
-      return isMySubject && isSameMonth;
-    });
+		const filteredAttendance = attendance.filter(a => {
+			const isMySubject = mySubjectIds.includes(a.subject_id)
+			const isSameMonth = dayjs(a.date).isSame(selectedMonth, 'month')
+			return isMySubject && isSameMonth
+		})
 
-    // Сбор статистики по предметам
-    const subjectsStats = subjects
-      .filter((s) => mySubjectIds.includes(s.id))
-      .map((sub) => {
-        const records = filteredAttendance.filter(
-          (a) => a.subject_id === sub.id,
-        );
-        const presents = records.filter((a) => a.status === "present").length;
-        const total = records.filter((a) => a.status !== "none").length;
-        return {
-          ...sub,
-          percent: total > 0 ? Math.round((presents / total) * 100) : 0,
-          totalRecords: total,
-        };
-      });
+		// Сбор статистики по предметам
+		const subjectsStats = subjects
+			.filter(s => mySubjectIds.includes(s.id))
+			.map(sub => {
+				const records = filteredAttendance.filter(a => a.subject_id === sub.id)
+				const presents = records.filter(a => a.status === 'present').length
+				const total = records.filter(a => a.status !== 'none').length
+				return {
+					...sub,
+					percent: total > 0 ? Math.round((presents / total) * 100) : 0,
+					totalRecords: total,
+				}
+			})
 
-    // Поиск прогульщиков (3+ пропуска)
-    const studentAbsences: Record<
-      string,
-      { id: string; name: string; count: number }
-    > = {};
-    filteredAttendance.forEach((record) => {
-      if (record.status === "absent") {
-        const student = allStudents.find((s) => s.id === record.student_id);
-        if (student) {
-          if (!studentAbsences[student.id]) {
-            studentAbsences[student.id] = {
-              id: student.id,
-              name: student.full_name,
-              count: 0,
-            };
-          }
-          studentAbsences[student.id].count++;
-        }
-      }
-    });
+		// Поиск прогульщиков (3+ пропуска)
+		const studentAbsences: Record<
+			string,
+			{ id: string; name: string; count: number }
+		> = {}
+		filteredAttendance.forEach(record => {
+			if (record.status === 'absent') {
+				const student = allStudents.find(s => s.id === record.student_id)
+				if (student) {
+					if (!studentAbsences[student.id]) {
+						studentAbsences[student.id] = {
+							id: student.id,
+							name: student.full_name,
+							count: 0,
+						}
+					}
+					studentAbsences[student.id].count++
+				}
+			}
+		})
 
-    const topAbsentees = Object.values(studentAbsences)
-      .filter((s) => s.count >= 3)
-      .sort((a, b) => b.count - a.count);
+		const topAbsentees = Object.values(studentAbsences)
+			.filter(s => s.count >= 3)
+			.sort((a, b) => b.count - a.count)
 
-    const totalValid = filteredAttendance.filter(
-      (a) => a.status !== "none",
-    ).length;
-    const totalPresents = filteredAttendance.filter(
-      (a) => a.status === "present",
-    ).length;
+		const totalValid = filteredAttendance.filter(
+			a => a.status !== 'none',
+		).length
+		const totalPresents = filteredAttendance.filter(
+			a => a.status === 'present',
+		).length
 
-    return {
-      subjectsStats,
-      totalPercent:
-        totalValid > 0 ? Math.round((totalPresents / totalValid) * 100) : 0,
-      totalStudentsMarked: totalValid,
-      topAbsentees,
-      rawFilteredData: filteredAttendance, // Сохраняем для экспорта
-    };
-  }, [
-    currentUser,
-    relations,
-    subjects,
-    attendance,
-    selectedMonth,
-    allStudents,
-  ]);
+		return {
+			subjectsStats,
+			totalPercent:
+				totalValid > 0 ? Math.round((totalPresents / totalValid) * 100) : 0,
+			totalStudentsMarked: totalValid,
+			topAbsentees,
+			rawFilteredData: filteredAttendance, // Сохраняем для экспорта
+		}
+	}, [currentUser, relations, subjects, attendance, selectedMonth, allStudents])
 
-  // --- ФУНКЦИЯ ЭКСПОРТА В EXCEL ---
-  const exportToExcel = () => {
-    if (!analytics || analytics.topAbsentees.length === 0) return;
+	// --- ФУНКЦИЯ ЭКСПОРТА В EXCEL ---
+	const exportToExcel = () => {
+		if (!analytics || !analytics.rawFilteredData) return
 
-    // Формируем данные для таблицы
-    const excelData = analytics.topAbsentees.map((s) => ({
-      "ФИО Студента": s.name,
-      "Кол-во пропусков": s.count,
-      Месяц: selectedMonth.format("MMMM YYYY"),
-      Статус: "В зоне риска",
-    }));
+		// Определяем интерфейс для данных отчета
+		interface AttendanceReportItem {
+			'ФИО Студента': string
+			'Предмет(ы)': string
+			'Всего занятий': number
+			Посещено: number
+			Пропущено: number
+			'Не отмечено': number
+			'Процент посещаемости': string
+			Статус: string
+			Месяц: string
+		}
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Прогульщики");
+		// Группируем данные по студентам
+		const studentsAttendance: AttendanceReportItem[] = allStudents.reduce(
+			(acc, student) => {
+				const studentRecords = analytics.rawFilteredData.filter(
+					record => record.student_id === student.id,
+				)
 
-    // Скачивание файла
-    XLSX.writeFile(
-      workbook,
-      `Otchet_Progulshiki_${selectedMonth.format("MM_YYYY")}.xlsx`,
-    );
-  };
+				if (studentRecords.length > 0) {
+					const totalRecords = studentRecords.length
+					const presentCount = studentRecords.filter(
+						record => record.status === 'present',
+					).length
+					const absentCount = studentRecords.filter(
+						record => record.status === 'absent',
+					).length
+					const noneCount = studentRecords.filter(
+						record => record.status === 'none',
+					).length
 
-  if (!currentUser) return null;
+					const attendancePercent =
+						totalRecords > 0
+							? Math.round((presentCount / totalRecords) * 100)
+							: 0
 
-  return (
-    <div style={{ maxWidth: 1200, margin: "0 auto", padding: "20px" }}>
-      <Row gutter={[24, 24]} align="middle" style={{ marginBottom: 32 }}>
-        <Col xs={24} md={12}>
-          <Title level={2} style={{ margin: 0 }}>
-            Личный кабинет
-          </Title>
-        </Col>
-        <Col xs={24} md={12} style={{ textAlign: "right" }}>
-          <Space wrap>
-            <DatePicker
-              picker="month"
-              value={selectedMonth}
-              onChange={(date) => date && setSelectedMonth(date)}
-              allowClear={false}
-              format="MMMM YYYY"
-            />
-            <Button
-              icon={<FileExcelOutlined />}
-              onClick={exportToExcel}
-              disabled={!analytics?.topAbsentees.length}
-            >
-              Выгрузить отчет
-            </Button>
-          </Space>
-        </Col>
-      </Row>
+					// Получаем уникальные предметы для студента
+					const uniqueSubjectIds = [
+						...new Set(studentRecords.map(r => r.subject_id)),
+					]
+					const subjectNames = uniqueSubjectIds
+						.map(id => subjects.find(sub => sub.id === id)?.name)
+						.filter(Boolean)
+						.join(', ')
 
-      <Row gutter={[24, 24]}>
-        {/* ПРОФИЛЬ */}
-        <Col xs={24} lg={8}>
-          <Card style={{ textAlign: "center" }}>
-            <Space direction="vertical" size="large" style={{ width: "100%" }}>
-              <Avatar
-                size={120}
-                src={myProfile?.avatar_url}
-                icon={<UserOutlined />}
-                style={{ backgroundColor: token.colorPrimary }}
-              />
-              <div>
-                <Title level={3} style={{ margin: 0 }}>
-                  {myProfile?.full_name || "Загрузка..."}
-                </Title>
-                <Text type="secondary">{currentUser.email}</Text>
-              </div>
-              <Divider />
-              <Statistic
-                title={`Общая явка за ${selectedMonth.format("MMMM")}`}
-                value={analytics?.totalPercent || 0}
-                suffix="%"
-                valueStyle={{
-                  color:
-                    (analytics?.totalPercent || 0) > 70 ? "#52c41a" : "#faad14",
-                }}
-              />
-            </Space>
-          </Card>
-        </Col>
+					acc.push({
+						'ФИО Студента': student.full_name,
+						'Предмет(ы)': subjectNames || 'Не указан',
+						'Всего занятий': totalRecords,
+						Посещено: presentCount,
+						Пропущено: absentCount,
+						'Не отмечено': noneCount,
+						'Процент посещаемости': `${attendancePercent}%`,
+						Статус:
+							attendancePercent < 70
+								? 'Низкая посещаемость'
+								: 'Хорошая посещаемость',
+						Месяц: selectedMonth.format('MMMM YYYY'),
+					})
+				}
 
-        {/* ПРЕДМЕТЫ */}
-        <Col xs={24} lg={16}>
-          <Card
-            title={
-              <Space>
-                <RiseOutlined /> Посещаемость по дисциплинам
-              </Space>
-            }
-          >
-            {analytics && analytics.subjectsStats.length > 0 ? (
-              <Row gutter={[16, 16]} style={{maxHeight: '304px', overflowY: 'scroll'}}>
-                {analytics.subjectsStats.map((item) => (
-                  <Col xs={24} sm={12} key={item.id}>
-                    <Card size="small">
-                      <Flex justify="space-between" style={{ width: "100%" }}>
-                        <Space>
-                          <BookOutlined style={{ color: "#1890ff" }} />
-                          <Text strong>{item.name}</Text>
-                        </Space>
-                        <Space>
-                          <Text strong>{item.percent}%</Text>
-                        </Space>
-                      </Flex>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            ) : (
-              <Empty description="Нет данных за этот период" />
-            )}
-          </Card>
-        </Col>
+				return acc
+			},
+			[] as AttendanceReportItem[],
+		)
 
-        {/* ПРОГУЛЬЩИКИ */}
-        <Col xs={24}>
-          <Card
-            title={
-              <Space>
-                <TeamOutlined style={{}} />
-                <span style={{}}>
-                  Студенты в зоне риска (3+ пропуска за месяц)
-                </span>
-              </Space>
-            }
-          >
-            {analytics?.topAbsentees.length ? (
-              <Row
-                gutter={[16, 16]}
-                style={{ maxHeight: "330px", overflowY: "scroll" }}
-              >
-                {analytics.topAbsentees.map((student) => (
-                  <Col xs={24} sm={12} md={8} lg={6} key={student.id}>
-                    <Card
-                      size="small"
-                      style={{
-                        border: `1px solid ${token.colorError}33`, // colorError с прозрачностью для границы
-                        backgroundColor: `${token.colorError}1a`, // colorError с прозрачностью для фона
-                      }}
-                    >
-                      <Space size="middle">
-                        <Avatar icon={<UserOutlined />} />
-                        <div>
-                          <Text strong>{formatName(student.name)}</Text>
-                          <br />
-                          <Text
-                            type="danger"
-                            style={{
-                              fontSize: "12px",
-                              color: token.colorPrimary,
-                            }}
-                          >
-                            {student.count} прогула(ов)
-                          </Text>
-                        </div>
-                      </Space>
-                    </Card>
-                  </Col>
-                ))}
-              </Row>
-            ) : (
-              <Empty description="Все студенты посещали занятия исправно!" />
-            )}
-          </Card>
-        </Col>
-      </Row>
-    </div>
-  );
+		const worksheet = XLSX.utils.json_to_sheet(studentsAttendance)
+		const workbook = XLSX.utils.book_new()
+		XLSX.utils.book_append_sheet(workbook, worksheet, 'Посещаемость')
+
+		// Скачивание файла
+		XLSX.writeFile(
+			workbook,
+			`Otchet_Poseshhaemost_${selectedMonth.format('MM_YYYY')}.xlsx`,
+		)
+	}
+
+	if (!currentUser) return null
+
+	return (
+		<div style={{ maxWidth: 1200, margin: '0 auto', padding: '20px' }}>
+			<Row gutter={[24, 24]} align='middle' style={{ marginBottom: 32 }}>
+				<Col xs={24} md={12}>
+					<Title level={2} style={{ margin: 0 }}>
+						Личный кабинет
+					</Title>
+				</Col>
+				<Col xs={24} md={12} style={{ textAlign: 'right' }}>
+					<Space wrap>
+						<DatePicker
+							picker='month'
+							value={selectedMonth}
+							onChange={date => date && setSelectedMonth(date)}
+							allowClear={false}
+							format='MMMM YYYY'
+						/>
+						<Button
+							icon={<FileExcelOutlined />}
+							onClick={exportToExcel}
+							disabled={!analytics?.rawFilteredData.length}
+						>
+							Выгрузить отчет
+						</Button>
+					</Space>
+				</Col>
+			</Row>
+
+			<Row gutter={[24, 24]}>
+				{/* ПРОФИЛЬ */}
+				<Col xs={24} lg={8}>
+					<Card style={{ textAlign: 'center' }}>
+						<Space direction='vertical' size='large' style={{ width: '100%' }}>
+							<Avatar
+								size={120}
+								src={myProfile?.avatar_url}
+								icon={<UserOutlined />}
+								style={{ backgroundColor: token.colorPrimary }}
+							/>
+							<div>
+								<Title level={3} style={{ margin: 0 }}>
+									{myProfile?.full_name || 'Загрузка...'}
+								</Title>
+								<Text type='secondary'>{currentUser.email}</Text>
+							</div>
+							<Divider />
+							<Statistic
+								title={`Общая явка за ${selectedMonth.format('MMMM')}`}
+								value={analytics?.totalPercent || 0}
+								suffix='%'
+								valueStyle={{
+									color:
+										(analytics?.totalPercent || 0) > 70 ? '#52c41a' : '#faad14',
+								}}
+							/>
+						</Space>
+					</Card>
+				</Col>
+
+				{/* ПРЕДМЕТЫ */}
+				<Col xs={24} lg={16}>
+					<Card
+						title={
+							<Space>
+								<RiseOutlined /> Посещаемость по дисциплинам
+							</Space>
+						}
+					>
+						{analytics && analytics.subjectsStats.length > 0 ? (
+							<Row
+								gutter={[16, 16]}
+								style={{ maxHeight: '304px', overflowY: 'scroll' }}
+							>
+								{analytics.subjectsStats.map(item => (
+									<Col xs={24} sm={12} key={item.id}>
+										<Card size='small'>
+											<Flex justify='space-between' style={{ width: '100%' }}>
+												<Space>
+													<BookOutlined style={{ color: '#1890ff' }} />
+													<Text strong>{item.name}</Text>
+												</Space>
+												<Space>
+													<Text strong>{item.percent}%</Text>
+												</Space>
+											</Flex>
+										</Card>
+									</Col>
+								))}
+							</Row>
+						) : (
+							<Empty description='Нет данных за этот период' />
+						)}
+					</Card>
+				</Col>
+
+				{/* ПРОГУЛЬЩИКИ */}
+				<Col xs={24}>
+					<Card
+						title={
+							<Space>
+								<TeamOutlined style={{}} />
+								<span style={{}}>
+									Студенты в зоне риска (3+ пропуска за месяц)
+								</span>
+							</Space>
+						}
+					>
+						{analytics?.topAbsentees.length ? (
+							<Row
+								gutter={[16, 16]}
+								style={{ maxHeight: '330px', overflowY: 'scroll' }}
+							>
+								{analytics.topAbsentees.map(student => (
+									<Col xs={24} sm={12} md={8} lg={6} key={student.id}>
+										<Card
+											size='small'
+											style={{
+												border: `1px solid ${token.colorError}33`, // colorError с прозрачностью для границы
+												backgroundColor: `${token.colorError}1a`, // colorError с прозрачностью для фона
+											}}
+										>
+											<Space size='middle'>
+												<Avatar icon={<UserOutlined />} />
+												<div>
+													<Text strong>{formatName(student.name)}</Text>
+													<br />
+													<Text
+														type='danger'
+														style={{
+															fontSize: '12px',
+															color: token.colorPrimary,
+														}}
+													>
+														{student.count} прогула(ов)
+													</Text>
+												</div>
+											</Space>
+										</Card>
+									</Col>
+								))}
+							</Row>
+						) : (
+							<Empty description='Все студенты посещали занятия исправно!' />
+						)}
+					</Card>
+				</Col>
+			</Row>
+		</div>
+	)
 }

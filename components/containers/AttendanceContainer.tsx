@@ -1,74 +1,78 @@
 'use client'
 
-import { Space } from 'antd'
-import { useEffect, useMemo, useState } from 'react'
-
-import { AttendanceTable } from '@/components/elements/AttendanceTable'
-import { supabase } from '@/lib/supabase'
-import { useGetProfilesQuery } from '@/services/teacher/teacherApi'
 import { User } from '@supabase/supabase-js'
-import { AttendanceTableFilters } from '../elements/AttendanceTableFilters'
-import { AttendanceModal } from '../ui/AttendanceModal'
+import { Space, Spin } from 'antd'
+import { useEffect, useState } from 'react'
+
+// Библиотеки и API
+import { supabase } from '@/lib/supabase'
+import { useGetProfileQuery } from '@/services/teacher/teacherApi'
+
+// Твои компоненты
+import { AttendanceTable } from '@/components/elements/AttendanceTable'
+import { AttendanceTableFilters } from '@/components/elements/AttendanceTableFilters'
+import { AttendanceModal } from '@/components/ui/AttendanceModal'
 
 export function AttendanceContainer() {
-	// Состояния фильтров
 	const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
 	const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(
 		null,
 	)
 	const [currentUser, setCurrentUser] = useState<User | null>(null)
 
-	// Добавляем refetch, чтобы принудительно обновить список профилей при логине
-	const { data: profiles = [], refetch: refetchProfiles } =
-		useGetProfilesQuery()
-
-	// СЛУШАЕМ АВТОРИЗАЦИЮ В РЕАЛЬНОМ ВРЕМЕНИ
+	// Получаем сессию
 	useEffect(() => {
-		// 1. Проверяем текущего юзера сразу
-		supabase.auth.getUser().then(({ data }) => {
-			if (data.user) {
-				setCurrentUser(data.user)
-				refetchProfiles() // Обновляем профили, если юзер найден
-			}
-		})
-
-		// 2. Подписываемся на изменения (важно для первой регистрации/логина)
+		supabase.auth
+			.getSession()
+			.then(({ data: { session } }) => setCurrentUser(session?.user ?? null))
 		const {
 			data: { subscription },
-		} = supabase.auth.onAuthStateChange((event, session) => {
-			if (session?.user) {
-				setCurrentUser(session.user)
-				refetchProfiles() // Как только появились куки/сессия — тянем профиль
-			} else {
-				setCurrentUser(null)
-			}
-		})
-
+		} = supabase.auth.onAuthStateChange((_e, s) =>
+			setCurrentUser(s?.user ?? null),
+		)
 		return () => subscription.unsubscribe()
-	}, [refetchProfiles])
+	}, [])
 
-	// ВЫЧИСЛЯЕМ, НУЖЕН ЛИ ONBOARDING
-	const IsLetsOnboarding: User = useMemo(
-		() => profiles.find(p => p.id === currentUser?.id),
-		[profiles, currentUser],
+	// Тянем профиль ТОЛЬКО текущего юзера
+	const { data: profile, isLoading } = useGetProfileQuery(
+		currentUser?.id ?? '',
+		{
+			skip: !currentUser?.id,
+		},
 	)
 
+	// Если имя дефолтное — значит нужен онбординг
+	const needsName =
+		currentUser &&
+		!isLoading &&
+		(!profile?.full_name || profile.full_name === 'Новый преподаватель')
+
+	if (isLoading) {
+		return (
+			<div
+				style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}
+			>
+				<Spin size='large' />
+			</div>
+		)
+	}
+
 	return (
-		<Space orientation='vertical' size='large' style={{ width: '100%' }}>
+		<Space direction='vertical' size='large' style={{ width: '100%' }}>
 			<AttendanceTableFilters
 				setSelectedGroupId={setSelectedGroupId}
 				setSelectedSubjectId={setSelectedSubjectId}
 				selectedGroupId={selectedGroupId}
 				selectedSubjectId={selectedSubjectId}
 				currentUser={currentUser}
-				IsLetsOnboarding={IsLetsOnboarding}
+				IsLetsOnboarding={profile} // Теперь это один объект
 			/>
 			<AttendanceTable
 				selectedGroupId={selectedGroupId}
 				selectedSubjectId={selectedSubjectId}
+				currentUser={currentUser}
 			/>
-
-			<AttendanceModal currentUser={currentUser} />
+			{needsName && <AttendanceModal currentUser={currentUser} />}
 		</Space>
 	)
 }

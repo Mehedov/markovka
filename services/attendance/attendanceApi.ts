@@ -1,36 +1,75 @@
 import { supabase } from '@/lib/supabase'
 import { baseApi } from '../api'
-import { Attendance } from '@/types/attendance'
 
-const attendanceApi = baseApi.injectEndpoints({
+export const attendanceApi = baseApi.injectEndpoints({
 	endpoints: build => ({
-		// ПОСЕЩАЕМОСТЬ
-		getAttendance: build.query<Attendance[], void>({
+		getAttendance: build.query<any[], void>({
 			queryFn: async () => {
-				const { data, error } = await supabase.from('attendance').select('*')
-				console.log(data)
+				const {
+					data: { user },
+				} = await supabase.auth.getUser()
 
-				if (error) return { error }
-				return { data }
+				const { data, error } = await supabase
+					.from('attendance')
+					.select('id, student_id, subject_id, date, status, teacher_id')
+					.eq('teacher_id', user?.id)
+
+				return error ? { error } : { data: data || [] }
 			},
 			providesTags: ['Attendance'],
 		}),
+
 		updateAttendance: build.mutation({
-			queryFn: async ({ student_id, subject_id, date, status }) => {
+			queryFn: async payload => {
 				const { data, error } = await supabase
 					.from('attendance')
-					.upsert(
-						{ student_id, subject_id, date, status },
-						{ onConflict: 'student_id,subject_id,date' },
-					)
-					.select()
-				if (error) return { error }
-				return { data: data[0] }
+					.upsert(payload, {
+						onConflict: 'student_id,subject_id,date,teacher_id',
+					})
+					.select('*')
+				return error ? { error } : { data: data[0] }
 			},
-			invalidatesTags: ['Attendance'],
+			async onQueryStarted(
+				{ student_id, date, status, teacher_id, subject_id },
+				{ dispatch, queryFulfilled },
+			) {
+				const patchResult = dispatch(
+					attendanceApi.util.updateQueryData(
+						'getAttendance',
+						undefined,
+						draft => {
+							// Ищем запись с учетом ВСЕХ ключей, включая subject_id
+							const record = draft.find(
+								r =>
+									r.student_id === student_id &&
+									r.date === date &&
+									r.teacher_id === teacher_id &&
+									r.subject_id === subject_id,
+							)
+
+							if (record) {
+								record.status = status
+							} else {
+								draft.push({
+									id: Date.now().toString(),
+									student_id,
+									subject_id,
+									date,
+									status,
+									teacher_id,
+								})
+							}
+						},
+					),
+				)
+				try {
+					await queryFulfilled
+				} catch {
+					patchResult.undo()
+				}
+			},
 		}),
 	}),
-	overrideExisting: false,
 })
 
 export const { useGetAttendanceQuery, useUpdateAttendanceMutation } =
