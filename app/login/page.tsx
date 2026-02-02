@@ -1,7 +1,6 @@
 'use client'
 import { supabase } from '@/lib/supabase'
-import { GoogleOutlined } from '@ant-design/icons'
-import { Button, Card, Divider, Form, Input, message } from 'antd'
+import { Button, Card, Form, Input, message, Tabs } from 'antd'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
@@ -9,29 +8,26 @@ export default function LoginPage() {
 	const router = useRouter()
 	const [loading, setLoading] = useState(false)
 
-	// Вход через Google
-	const handleGoogleLogin = async () => {
-		const { error } = await supabase.auth.signInWithOAuth({
-			provider: 'google',
-			options: {
-				// Куда перенаправить пользователя после успешного входа
-				redirectTo: `${window.location.origin}/auth/callback`,
-			},
-		})
-
-		if (error) message.error('Ошибка Google-входа: ' + error.message)
-	}
-
-	const onFinish = async (values: any) => {
+	const onLogin = async (values: any) => {
 		setLoading(true)
 		const { error } = await supabase.auth.signInWithPassword(values)
 		setLoading(false)
+		if (error) message.error(error.message)
+		else router.push('/management')
+	}
 
-		if (error) {
-			message.error('Ошибка входа: ' + error.message)
-		} else {
-			message.success('Вы вошли!')
-			router.push('/management')
+	const onRegister = async (values: any) => {
+		setLoading(true)
+		const { data, error } = await supabase.auth.signUp({
+			email: values.email,
+			password: values.password,
+			options: { data: { full_name: values.full_name } },
+		})
+		setLoading(false)
+		if (error) message.error(error.message)
+		else {
+			message.success('Регистрация успешна!')
+			if (data.session) router.push('/management')
 		}
 	}
 
@@ -41,44 +37,81 @@ export default function LoginPage() {
 				display: 'flex',
 				justifyContent: 'center',
 				alignItems: 'center',
-				height: '80vh',
+				height: '90vh',
 			}}
 		>
-			<Card title='Вход в систему' style={{ width: 400 }}>
-				<Form onFinish={onFinish} layout='vertical'>
-					<Form.Item
-						name='email'
-						label='Email'
-						rules={[{ required: true, type: 'email' }]}
-					>
-						<Input placeholder='example@mail.com' />
-					</Form.Item>
-					<Form.Item
-						name='password'
-						label='Пароль'
-						rules={[{ required: true }]}
-					>
-						<Input.Password />
-					</Form.Item>
-					<Button type='primary' htmlType='submit' block loading={loading}>
-						Войти по паролю
-					</Button>
-				</Form>
-
-				<Divider>или</Divider>
-
-				<Button
-					icon={<GoogleOutlined />}
-					block
-					onClick={handleGoogleLogin}
-					style={{
-						display: 'flex',
-						alignItems: 'center',
-						justifyContent: 'center',
-					}}
-				>
-					Войти через Google
-				</Button>
+			<Card style={{ width: 400 }}>
+				<Tabs
+					items={[
+						{
+							key: '1',
+							label: 'Вход',
+							children: (
+								<Form onFinish={onLogin} layout='vertical'>
+									<Form.Item
+										name='email'
+										label='Email'
+										rules={[{ required: true, type: 'email' }]}
+									>
+										<Input />
+									</Form.Item>
+									<Form.Item
+										name='password'
+										label='Пароль'
+										rules={[{ required: true }]}
+									>
+										<Input.Password />
+									</Form.Item>
+									<Button
+										type='primary'
+										htmlType='submit'
+										block
+										loading={loading}
+									>
+										Войти
+									</Button>
+								</Form>
+							),
+						},
+						{
+							key: '2',
+							label: 'Регистрация',
+							children: (
+								<Form onFinish={onRegister} layout='vertical'>
+									<Form.Item
+										name='full_name'
+										label='ФИО'
+										rules={[{ required: true }]}
+									>
+										<Input />
+									</Form.Item>
+									<Form.Item
+										name='email'
+										label='Email'
+										rules={[{ required: true, type: 'email' }]}
+									>
+										<Input />
+									</Form.Item>
+									<Form.Item
+										name='password'
+										label='Пароль'
+										rules={[{ required: true, min: 6 }]}
+									>
+										<Input.Password />
+									</Form.Item>
+									<Button
+										type='primary'
+										htmlType='submit'
+										block
+										loading={loading}
+									>
+										Создать аккаунт
+									</Button>
+								</Form>
+							),
+						},
+					]}
+				/>
 			</Card>
 		</div>
 	)

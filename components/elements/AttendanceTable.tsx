@@ -1,3 +1,5 @@
+'use client'
+
 import {
 	useGetAttendanceQuery,
 	useUpdateAttendanceMutation,
@@ -9,6 +11,7 @@ import {
 	CheckOutlined,
 	CloseCircleFilled,
 } from '@ant-design/icons'
+import { User } from '@supabase/supabase-js'
 import {
 	Alert,
 	Card,
@@ -25,17 +28,20 @@ import { useMemo, useState } from 'react'
 interface Props {
 	selectedGroupId: string | null
 	selectedSubjectId: string | null
+	currentUser: User | null
 }
+
 const { Text } = Typography
 dayjs.locale('ru')
 
-export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
+export function AttendanceTable({
+	selectedGroupId,
+	selectedSubjectId,
+	currentUser,
+}: Props) {
 	const { token } = theme.useToken()
-
 	const { data: allStudents = [] } = useGetStudentsQuery()
-
 	const { data: attendanceRecords = [] } = useGetAttendanceQuery()
-
 	const [updateAttendance] = useUpdateAttendanceMutation()
 	const [selectedMonth] = useState(dayjs())
 
@@ -52,10 +58,13 @@ export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
 	}, [selectedMonth])
 
 	const stats = useMemo(() => {
-		if (!selectedSubjectId) return { presents: 0, total: 0, percent: 0 }
+		if (!selectedSubjectId || !currentUser)
+			return { presents: 0, total: 0, percent: 0 }
+
 		const relevant = attendanceRecords.filter(
 			r =>
 				r.subject_id === selectedSubjectId &&
+				r.teacher_id === currentUser.id &&
 				studentsInGroup.some(s => s.id === r.student_id) &&
 				dayjs(r.date).isSame(selectedMonth, 'month'),
 		)
@@ -68,27 +77,41 @@ export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
 			total,
 			percent: total > 0 ? Math.round((presents / total) * 100) : 0,
 		}
-	}, [attendanceRecords, selectedSubjectId, studentsInGroup, selectedMonth])
+	}, [
+		attendanceRecords,
+		selectedSubjectId,
+		studentsInGroup,
+		selectedMonth,
+		currentUser,
+	])
 
 	const handleToggle = async (studentId: string, dateStr: string) => {
-		if (!selectedSubjectId) return
+		if (!selectedSubjectId || !currentUser) return
+
 		const currentRecord = attendanceRecords.find(
 			r =>
 				r.student_id === studentId &&
 				r.subject_id === selectedSubjectId &&
-				r.date === dateStr,
+				r.date === dateStr &&
+				r.teacher_id === currentUser.id,
 		)
+
 		const currentStatus = currentRecord?.status || 'none'
 		const nextStatusMap: Record<string, string> = {
 			none: 'present',
 			present: 'absent',
 			absent: 'none',
 		}
+
+		const statusToSave = nextStatusMap[currentStatus]
+
+		// Вызываем мутацию (Optimistic UI сработает в API)
 		await updateAttendance({
 			student_id: studentId,
 			subject_id: selectedSubjectId,
 			date: dateStr,
-			status: nextStatusMap[currentStatus],
+			status: statusToSave,
+			teacher_id: currentUser.id,
 		})
 	}
 
@@ -114,25 +137,25 @@ export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
 				),
 				align: 'center' as const,
 				width: 50,
-				onCell: () => {
-					const isToday = dateStr === today
-					return {
-						style: isToday
+				onCell: () => ({
+					style:
+						dateStr === today
 							? {
 									backgroundColor: token.colorPrimaryBg,
 									borderInline: `1px solid ${token.colorPrimary}`,
 								}
 							: {},
-					}
-				},
+				}),
 				render: (_: unknown, record: { id: string }) => {
 					const res = attendanceRecords.find(
 						r =>
 							r.student_id === record.id &&
 							r.subject_id === selectedSubjectId &&
-							r.date === dateStr,
+							r.date === dateStr &&
+							r.teacher_id === currentUser?.id,
 					)
 					const status = res?.status || 'none'
+
 					return (
 						<div
 							onClick={() => handleToggle(record.id, dateStr)}
@@ -165,6 +188,7 @@ export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
 			}
 		}),
 	]
+
 	return selectedGroupId && selectedSubjectId ? (
 		<>
 			<Row gutter={16} style={{ marginBottom: '25px' }}>
@@ -187,7 +211,6 @@ export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
 					</Card>
 				</Col>
 			</Row>
-
 			<Table
 				dataSource={studentsInGroup}
 				columns={columns}
@@ -199,9 +222,7 @@ export function AttendanceTable({ selectedGroupId, selectedSubjectId }: Props) {
 		</>
 	) : (
 		<Alert
-			style={{
-				fontSize: '18px',
-			}}
+			style={{ fontSize: '18px' }}
 			title='Выберите группу и дисциплину для начала работы'
 			type='info'
 			showIcon

@@ -1,88 +1,127 @@
-'use client'
+"use client";
 
-import { supabase } from '@/lib/supabase'
-import { useGetProfilesQuery } from '@/services/teacher/teacherApi'
-import { formatName } from '@/utils/formatName'
+import { supabase } from "@/lib/supabase";
+import { useGetProfileQuery } from "@/services/teacher/teacherApi";
+import { formatName } from "@/utils/formatName";
 import {
 	AppstoreOutlined,
 	BookOutlined,
 	CalendarOutlined,
-	LoginOutlined,
+	ControlOutlined,
 	LogoutOutlined,
 	SettingOutlined,
 	TeamOutlined,
 	UserAddOutlined,
 	UserOutlined,
 } from '@ant-design/icons'
-import { User } from '@supabase/supabase-js'
 import {
-	Avatar,
-	Button,
-	Dropdown,
-	Layout,
-	Menu,
-	Space,
-	theme,
-	Typography,
-} from 'antd'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
-import { ThemeSwitcher } from './ThemeSwitcher'
+  Avatar,
+  Button,
+  Dropdown,
+  Layout,
+  Menu,
+  Skeleton,
+  Space,
+  theme,
+  Typography,
+} from "antd";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
-const { Header, Content, Sider } = Layout
-const { Text } = Typography
+const { Header, Content, Sider } = Layout;
+const { Text } = Typography;
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const router = useRouter()
 	const pathname = usePathname()
 	const { token: antdToken } = theme.useToken()
 
-	const [currentUser, setCurrentUser] = useState<User | null>(null)
+	const [userId, setUserId] = useState<string | null>(null)
+	const [userMetadata, setUserMetadata] = useState<any>(null)
 	const [collapsed, setCollapsed] = useState(false)
 
-	// Подключаем профили из базы
-	const { data: profiles = [] } = useGetProfilesQuery()
-
 	useEffect(() => {
-		// Проверяем сессию при загрузке
 		supabase.auth.getSession().then(({ data: { session } }) => {
-			setCurrentUser(session?.user ?? null)
+			setUserId(session?.user?.id ?? null)
+			setUserMetadata(session?.user?.app_metadata ?? null)
 		})
 
-		// Слушаем изменения авторизации
 		const {
 			data: { subscription },
 		} = supabase.auth.onAuthStateChange((_event, session) => {
-			setCurrentUser(session?.user ?? null)
+			setUserId(session?.user?.id ?? null)
+			setUserMetadata(session?.user?.app_metadata ?? null)
 		})
 
 		return () => subscription.unsubscribe()
 	}, [])
+
+	const { data: myProfile, isLoading: isProfileLoading } = useGetProfileQuery(
+		userId ?? '',
+		{ skip: !userId },
+	)
 
 	const handleLogout = async () => {
 		await supabase.auth.signOut()
 		router.push('/login')
 	}
 
-	// Находим данные профиля текущего пользователя
-	const myProfile = profiles.find(p => p.id === currentUser?.id)
-	const isAdmin = currentUser?.app_metadata?.role === 'admin'
+	const isAdmin = userMetadata?.role === 'admin'
 	const profileName = myProfile?.full_name
-		? formatName(myProfile?.full_name)
+		? formatName(myProfile.full_name)
 		: null
-	console.log(profileName)
 
-	// Выпадающее меню аватара
+	// Определяем, какой пункт в ВЕРХНЕМ меню должен быть активен
+	// Если путь начинается с /management, подсвечиваем кнопку управления
+	const topMenuSelectedKey = pathname.startsWith('/management')
+		? '/management'
+		: pathname
+
+	const menuItems = [
+		...(userId
+			? [
+					{
+						key: '/',
+						icon: <CalendarOutlined />,
+						label: <Link href='/'>Посещаемость</Link>,
+					},
+					...(isAdmin
+						? [
+								{
+									key: '/management',
+									icon: <ControlOutlined />, // Изменили иконку на Control
+									label: <Link href='/management'>Управление</Link>,
+								},
+							]
+						: []),
+				]
+			: []),
+	]
+
+	const adminSiderMenuItems = isAdmin
+		? [
+				{
+					key: '/management',
+					icon: <AppstoreOutlined />,
+					label: <Link href='/management'>Обзор</Link>,
+				},
+				{
+					key: '/management/groups',
+					icon: <TeamOutlined />,
+					label: <Link href="/management/groups">Группы</Link>,
+				},
+			]
+		: []
+
 	const userMenuItems = [
 		{
 			key: 'profile',
 			icon: <UserOutlined />,
 			label: <Link href='/profile'>Мой профиль</Link>,
 		},
-		{
-			type: 'divider' as const,
-		},
+		{ type: 'divider' as const },
 		{
 			key: 'logout',
 			icon: <LogoutOutlined />,
@@ -92,180 +131,113 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 		},
 	]
 
-	// Основное навигационное меню
-	const topMenuItems = [
-		...(currentUser
-			? [
-					{
-						key: '/',
-						icon: <CalendarOutlined />,
-						label: <Link href='/'>Посещаемость</Link>,
-					},
-				]
-			: []),
-	]
-
-	// Боковое меню для администратора
-	const adminSiderMenuItems = isAdmin
-		? [
-				{
-					key: '/management',
-					icon: <AppstoreOutlined />,
-					label: <Link href='/management'>Главная</Link>,
-				},
-				{
-					key: '/management/groups',
-					icon: <TeamOutlined />,
-					label: <Link href='/management/groups'>Группы</Link>,
-				},
-				{
-					key: '/management/students',
-					icon: <UserAddOutlined />,
-					label: <Link href='/management/students'>Студенты</Link>,
-				},
-				{
-					key: '/management/subjects',
-					icon: <BookOutlined />,
-					label: <Link href='/management/subjects'>Предметы</Link>,
-				},
-				{
-					key: '/management/teachers',
-					icon: <SettingOutlined />,
-					label: <Link href='/management/teachers'>Преподаватели</Link>,
-				},
-			]
-		: []
-
 	return (
 		<Layout style={{ minHeight: '100vh' }}>
-			<Header
-				style={{
-					position: 'sticky',
-					top: 0,
-					width: '100%',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'space-between',
-					padding: '0 24px',
-					boxShadow: '0 1px 5px rgba(0,0,0,0.10)',
-					zIndex: 10,
-					backgroundColor: antdToken.colorBgLayout,
-					color: antdToken.colorText,
-					borderBottom: `1px solid ${antdToken.colorBorderSecondary}`,
-				}}
-			>
-				<Space size='large'>
-					<Menu
-						mode='horizontal'
-						selectedKeys={[pathname]}
-						items={topMenuItems}
+			{isAdmin && pathname.startsWith('/management') && (
+				<Sider
+					collapsible
+					collapsed={collapsed}
+					onCollapse={value => setCollapsed(value)}
+					theme='light'
+					style={{ borderRight: `1px solid ${antdToken.colorBorderSecondary}` }}
+				>
+					<div
 						style={{
-							minWidth: 300,
-							borderBottom: 'none',
-							backgroundColor: antdToken.colorBgLayout,
-							color: antdToken.colorText,
+							height: 32,
+							margin: 16,
+							background: 'rgba(0, 0, 0, 0.05)',
+							borderRadius: 6,
 						}}
 					/>
-				</Space>
-
-				<Space size='middle'>
-					<ThemeSwitcher />
-
-					{currentUser ? (
-						<Dropdown
-							menu={{ items: userMenuItems }}
-							placement='bottomRight'
-							arrow
-						>
-							<Space
-								style={{
-									cursor: 'pointer',
-									padding: '4px 8px',
-									borderRadius: 8,
-								}}
-							>
-								<div
-									style={{
-										textAlign: 'right',
-										lineHeight: 1,
-										display: 'flex',
-										flexDirection: 'column',
-									}}
-								>
-									<Text strong style={{ fontSize: '16px' }}>
-										{profileName || 'Загрузка...'}
-									</Text>
-									<Text type='secondary' style={{ fontSize: '15px' }}>
-										{isAdmin ? 'Администратор' : 'Преподаватель'}
-									</Text>
-								</div>
-								<Avatar
-									size='large'
-									src={myProfile?.avatar_url}
-									icon={<UserOutlined />}
-									style={{ backgroundColor: antdToken.colorPrimary }}
-								/>
-							</Space>
-						</Dropdown>
-					) : (
-						<Space>
-							<Button
-								type='primary'
-								icon={<LoginOutlined />}
-								onClick={() => router.push('/login')}
-							>
-								Войти
-							</Button>
-							<Button onClick={() => router.push('/register')}>
-								Регистрация
-							</Button>
-						</Space>
-					)}
-				</Space>
-			</Header>
+					<Menu
+						theme='light'
+						selectedKeys={[pathname]} // Тут оставляем точный путь для сайдбара
+						mode='inline'
+						items={adminSiderMenuItems}
+					/>
+				</Sider>
+			)}
 
 			<Layout>
-				{isAdmin && (
-					<Sider
-						collapsible
-						collapsed={collapsed}
-						onCollapse={value => setCollapsed(value)}
-						width={250}
-						style={{
-							background: antdToken.colorBgContainer,
-							borderRight: `1px solid ${antdToken.colorBorderSecondary}`,
-						}}
-					>
-						<div
-							style={{
-								height: 40,
-								margin: '16px',
-								paddingLeft: 8,
-								fontWeight: 'bold',
-								fontSize: '16px',
-								display: 'flex',
-								alignItems: 'center',
-							}}
-						>
-							{collapsed ? '' : 'Управление'}
-						</div>
+				<Header
+					style={{
+						position: 'sticky',
+						top: 0,
+						zIndex: 10,
+						width: '100%',
+						display: 'flex',
+						alignItems: 'center',
+						justifyContent: 'space-between',
+						padding: '0 24px',
+						backgroundColor: antdToken.colorBgLayout,
+						borderBottom: `1px solid ${antdToken.colorBorderSecondary}`,
+					}}
+				>
+					<Space size='large'>
 						<Menu
-							mode='inline'
-							selectedKeys={[pathname]}
-							items={adminSiderMenuItems}
+							mode='horizontal'
+							selectedKeys={[topMenuSelectedKey]} // Используем вычисляемый ключ
+							items={menuItems}
 							style={{
-								borderRight: 0,
-								background: 'transparent',
+								minWidth: 300,
+								borderBottom: 'none',
+								backgroundColor: 'transparent',
 							}}
 						/>
-					</Sider>
-				)}
+					</Space>
+
+					<Space size='middle'>
+						<ThemeSwitcher />
+						{userId ? (
+							<Dropdown
+								menu={{ items: userMenuItems }}
+								placement='bottomRight'
+								arrow
+							>
+								<Space style={{ cursor: 'pointer', padding: '4px 8px' }}>
+									<div
+										style={{
+											textAlign: 'right',
+											lineHeight: 1,
+											display: 'flex',
+											flexDirection: 'column',
+										}}
+									>
+										{isProfileLoading ? (
+											<Skeleton.Input
+												active
+												size='small'
+												style={{ width: 100, height: 16 }}
+											/>
+										) : (
+											<>
+												<Text strong style={{ fontSize: '14px' }}>
+													{profileName || 'Без имени'}
+												</Text>
+												<Text type='secondary' style={{ fontSize: '12px' }}>
+													{isAdmin ? 'Администратор' : 'Преподаватель'}
+												</Text>
+											</>
+										)}
+									</div>
+									<Avatar
+										size='large'
+										src={myProfile?.avatar_url}
+										icon={<UserOutlined />}
+										style={{ backgroundColor: antdToken.colorPrimary }}
+									/>
+								</Space>
+							</Dropdown>
+						) : (
+							<Button type='primary' onClick={() => router.push('/login')}>
+								Войти
+							</Button>
+						)}
+					</Space>
+				</Header>
+
 				<Content
-					style={{
-						padding: '24px',
-						background: antdToken.colorBgLayout,
-						minHeight: 'calc(100vh - 64px)',
-					}}
+					style={{ padding: '24px', background: antdToken.colorBgLayout }}
 				>
 					<div style={{ width: '100%', margin: '0 auto' }}>{children}</div>
 				</Content>

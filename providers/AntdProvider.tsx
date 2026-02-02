@@ -12,7 +12,6 @@ export const AntdProvider = ({ children }: { children: React.ReactNode }) => {
     <ConfigProvider theme={isDarkMode ? darkTheme : lightTheme}>
       <div
         style={{
-          
           transition: "all 0s",
         }}
       >
