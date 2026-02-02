@@ -106,12 +106,12 @@ export default function StudentsManagement() {
 
 				<Col xs={24} lg={12}>
 					<Card title='Список студентов'>
-						<div style={{ maxHeight: 400, overflowY: 'auto' }}>
+						<div>
 							<Table
 								dataSource={students}
 								columns={studentColumns}
 								rowKey='id'
-								pagination={{ pageSize: 10 }}
+								pagination={{ pageSize: 7 }}
 							/>
 						</div>
 					</Card>

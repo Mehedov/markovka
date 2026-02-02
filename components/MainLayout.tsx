@@ -1,8 +1,8 @@
-'use client'
+"use client";
 
-import { supabase } from '@/lib/supabase'
-import { useGetProfileQuery } from '@/services/teacher/teacherApi'
-import { formatName } from '@/utils/formatName'
+import { supabase } from "@/lib/supabase";
+import { useGetProfileQuery } from "@/services/teacher/teacherApi";
+import { formatName } from "@/utils/formatName";
 import {
 	AppstoreOutlined,
 	BookOutlined,
@@ -15,23 +15,23 @@ import {
 	UserOutlined,
 } from '@ant-design/icons'
 import {
-	Avatar,
-	Button,
-	Dropdown,
-	Layout,
-	Menu,
-	Skeleton,
-	Space,
-	theme,
-	Typography,
-} from 'antd'
-import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
-import React, { useEffect, useState } from 'react'
-import { ThemeSwitcher } from './ThemeSwitcher'
+  Avatar,
+  Button,
+  Dropdown,
+  Layout,
+  Menu,
+  Skeleton,
+  Space,
+  theme,
+  Typography,
+} from "antd";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import React, { useEffect, useState } from "react";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 
-const { Header, Content, Sider } = Layout
-const { Text } = Typography
+const { Header, Content, Sider } = Layout;
+const { Text } = Typography;
 
 export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 	const router = useRouter()
@@ -110,22 +110,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 				{
 					key: '/management/groups',
 					icon: <TeamOutlined />,
-					label: <Link href='/management/groups'>Группы</Link>,
-				},
-				{
-					key: '/management/students',
-					icon: <UserAddOutlined />,
-					label: <Link href='/management/students'>Студенты</Link>,
-				},
-				{
-					key: '/management/subjects',
-					icon: <BookOutlined />,
-					label: <Link href='/management/subjects'>Предметы</Link>,
-				},
-				{
-					key: '/management/teachers',
-					icon: <SettingOutlined />,
-					label: <Link href='/management/teachers'>Преподаватели</Link>,
+					label: <Link href="/management/groups">Группы</Link>,
 				},
 			]
 		: []
