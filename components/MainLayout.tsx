@@ -7,6 +7,7 @@ import {
 	AppstoreOutlined,
 	BookOutlined,
 	CalendarOutlined,
+	ControlOutlined,
 	LogoutOutlined,
 	SettingOutlined,
 	TeamOutlined,
@@ -39,7 +40,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
 	const [userId, setUserId] = useState<string | null>(null)
 	const [userMetadata, setUserMetadata] = useState<any>(null)
-	const [collapsed, setCollapsed] = useState(false) // Добавили состояние для Sider
+	const [collapsed, setCollapsed] = useState(false)
 
 	useEffect(() => {
 		supabase.auth.getSession().then(({ data: { session } }) => {
@@ -72,7 +73,12 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 		? formatName(myProfile.full_name)
 		: null
 
-	// Меню в шапке (для всех)
+	// Определяем, какой пункт в ВЕРХНЕМ меню должен быть активен
+	// Если путь начинается с /management, подсвечиваем кнопку управления
+	const topMenuSelectedKey = pathname.startsWith('/management')
+		? '/management'
+		: pathname
+
 	const menuItems = [
 		...(userId
 			? [
@@ -81,17 +87,25 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 						icon: <CalendarOutlined />,
 						label: <Link href='/'>Посещаемость</Link>,
 					},
+					...(isAdmin
+						? [
+								{
+									key: '/management',
+									icon: <ControlOutlined />, // Изменили иконку на Control
+									label: <Link href='/management'>Управление</Link>,
+								},
+							]
+						: []),
 				]
 			: []),
 	]
 
-	// Боковое меню (только для админа)
 	const adminSiderMenuItems = isAdmin
 		? [
 				{
 					key: '/management',
 					icon: <AppstoreOutlined />,
-					label: <Link href='/management'>Главная</Link>,
+					label: <Link href='/management'>Обзор</Link>,
 				},
 				{
 					key: '/management/groups',
@@ -134,7 +148,6 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
 	return (
 		<Layout style={{ minHeight: '100vh' }}>
-			{/* Боковая панель появляется только у админа на страницах управления */}
 			{isAdmin && pathname.startsWith('/management') && (
 				<Sider
 					collapsible
@@ -153,7 +166,7 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 					/>
 					<Menu
 						theme='light'
-						defaultSelectedKeys={[pathname]}
+						selectedKeys={[pathname]} // Тут оставляем точный путь для сайдбара
 						mode='inline'
 						items={adminSiderMenuItems}
 					/>
@@ -178,10 +191,10 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 					<Space size='large'>
 						<Menu
 							mode='horizontal'
-							selectedKeys={[pathname]}
-							items={menuItems} // ИСПРАВЛЕНО: было topMenuItems
+							selectedKeys={[topMenuSelectedKey]} // Используем вычисляемый ключ
+							items={menuItems}
 							style={{
-								minWidth: 200,
+								minWidth: 300,
 								borderBottom: 'none',
 								backgroundColor: 'transparent',
 							}}
@@ -213,10 +226,10 @@ export const MainLayout = ({ children }: { children: React.ReactNode }) => {
 											/>
 										) : (
 											<>
-												<Text strong style={{ fontSize: '16px' }}>
+												<Text strong style={{ fontSize: '14px' }}>
 													{profileName || 'Без имени'}
 												</Text>
-												<Text type='secondary' style={{ fontSize: '13px' }}>
+												<Text type='secondary' style={{ fontSize: '12px' }}>
 													{isAdmin ? 'Администратор' : 'Преподаватель'}
 												</Text>
 											</>
